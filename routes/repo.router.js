@@ -1,10 +1,11 @@
 const express = require("express");
 const repoController = require("../controllers/repoController");
 const authMiddleware = require("../middleware/authMiddleware");
+const { repositoryLimiter } = require("../middleware/rateLimitMiddleware");
 
 const repoRouter = express.Router();
 
-repoRouter.post("/repo/create", authMiddleware, repoController.createRepository);
+repoRouter.post("/repo/create", authMiddleware, repositoryLimiter, repoController.createRepository);
 repoRouter.get("/repo/all", repoController.getAllRepositories);
 repoRouter.get("/repo/name/:name", repoController.fetchRepositoryByName);
 repoRouter.get("/repo/user/:userID", repoController.fetchRepositoriesForCurrentUser);

@@ -28,6 +28,7 @@ const { showRemote } = require("./controllers/remoteInfo");
 const { cloneRepo } = require("./controllers/clone");
 const { showStatus } = require("./controllers/status");
 const errorMiddleware = require("./middleware/errorMiddleware");
+const { globalLimiter } = require("./middleware/rateLimitMiddleware");
 const connectDB = require("./config/db");
 
 
@@ -121,15 +122,8 @@ yargs(hideBin(process.argv))
 async function startServer() {
     const app = express();
     const port = process.env.PORT || 3000;
-    const limiter = rateLimit({
-        windowMs: 15 * 60 * 1000,
-        max: 500,
-        standardHeaders: true,
-        legacyHeaders: false,
-        skip: (req) => req.method === "OPTIONS",
-        message: { message: "Too many requests. Please try again later." },
-    });
     app.use(helmet());
+    app.set("trust proxy", 1);
 
     app.use(morgan("dev"));
 
@@ -140,7 +134,7 @@ async function startServer() {
 
     app.use(bodyParser.json());
     app.use(express.json());
-    app.use(limiter);
+    app.use(globalLimiter);
 
     const mongoURI = process.env.MONGODB_URI;
 
