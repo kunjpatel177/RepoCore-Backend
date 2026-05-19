@@ -8,12 +8,13 @@ const Commit = require("../models/commitModel");
 async function createRepository(req, res) {
 
     let { owner, name, issues, content, description, visibility } = req.body;
+    const normalizedName = name?.trim()?.toLowerCase();
 
     try {
 
         // REQUIRED VALIDATION
 
-        if (!name || !name.trim()) {
+        if (!normalizedName) {
             return res.status(400).json({
                 error: "Repository name is required",
             });
@@ -68,15 +69,29 @@ async function createRepository(req, res) {
             });
         }
 
-        // DUPLICATE REPOSITORY CHECK
+        // CHECK DUPLICATE REPOSITORY
 
-        const existingRepository = await Repository.findOne({ owner, name });
+        const existingRepository = await Repository.findOne({
+            owner,
+            name: { $regex: new RegExp(`^${normalizedName}$`, "i") },
+        });
 
         if (existingRepository) {
             return res.status(400).json({
-                error: "Repository with this name already exists",
+                success: false,
+                message: "Repository with this name already exists",
             });
         }
+
+        // // DUPLICATE REPOSITORY CHECK
+
+        // const existingRepository = await Repository.findOne({ owner, name });
+
+        // if (existingRepository) {
+        //     return res.status(400).json({
+        //         error: "Repository with this name already exists",
+        //     });
+        // }
 
         // DESCRIPTION LIMIT
 
@@ -97,7 +112,7 @@ async function createRepository(req, res) {
         // CREATE REPOSITORY
 
         const newRepository = new Repository({
-            name,
+            name: normalizedName,
             description,
             visibility,
             owner,
@@ -124,6 +139,13 @@ async function createRepository(req, res) {
         });
 
     } catch (err) {
+
+        if (err.code === 11000) {
+            return res.status(400).json({
+                success: false,
+                message: "Repository name already exists",
+            });
+        }
 
         console.error("Repository creation error:", err.message);
 
