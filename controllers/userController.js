@@ -7,6 +7,7 @@ const Commit = require("../models/commitModel");
 const Issue = require("../models/issueModel");
 const Repository = require("../models/repoModel");
 const asyncHandler = require("../utils/asyncHandler");
+const { validatePassword } = require("../utils/passwordValidator");
 
 // SIGNUP
 
@@ -20,8 +21,14 @@ const signup = async (req, res) => {
     if (!validator.isEmail(email))
         return res.status(400).json({ message: "Invalid email format" });
 
-    if (password.length < 6)
-        return res.status(400).json({ message: "Password must be at least 6 characters long" });
+    const passwordValidation = validatePassword(password);
+
+    if (!passwordValidation.valid) {
+        return res.status(400).json({
+            success: false,
+            message: passwordValidation.message,
+        });
+    }
 
     const existingUser = await User.findOne({ $or: [{ email }, { username }] });
 
@@ -140,8 +147,14 @@ const updateUserProfile = async (req, res) => {
 
     if (password) {
 
-        if (password.length < 6)
-            return res.status(400).json({ message: "Password must be at least 6 characters long" });
+        const passwordValidation = validatePassword(password);
+
+        if (!passwordValidation.valid) {
+            return res.status(400).json({
+                success: false,
+                message: passwordValidation.message,
+            });
+        }
 
         const salt = await bcrypt.genSalt(10);
         user.password = await bcrypt.hash(password, salt);
