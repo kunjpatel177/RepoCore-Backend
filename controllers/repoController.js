@@ -88,7 +88,11 @@ async function createRepository(req, res) {
 
         // VISIBILITY VALIDATION
 
-        if (typeof visibility !== "boolean") visibility = true;
+        if (typeof visibility !== "boolean") {
+            return res.status(400).json({
+                error: "Visibility must be true or false",
+            });
+        }
 
         // CREATE REPOSITORY
 
@@ -144,8 +148,8 @@ async function getAllRepositories(req, res) {
 }
 
 async function fetchRepositoryById(req, res) {
-    const { id } = req.params;
     try {
+        const { id } = req.params;
         // const repository = await Repository.findById(id)
         //     .populate("owner")
         //     .populate("issues");
@@ -224,6 +228,10 @@ async function updateRepositoryById(req, res) {
 
         repository.content.push(file);
         repository.description = description;
+
+        if (visibility !== undefined && typeof visibility !== "boolean") {
+            return res.status(400).json({ error: "Visibility must be boolean" });
+        }
 
         const updatedRepository = await repository.save();
 
