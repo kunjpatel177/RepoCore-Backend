@@ -6,16 +6,91 @@ const Commit = require("../models/commitModel");
 // const { s3, S3_BUCKET } = require("../config/aws-config");
 
 async function createRepository(req, res) {
-    const { owner, name, issues, content, description, visibility } = req.body;
+
+    let { owner, name, issues, content, description, visibility } = req.body;
 
     try {
-        if (!name) {
-            return res.status(400).json({ error: "Repository name is required!" });
+
+        // REQUIRED VALIDATION
+
+        if (!name || !name.trim()) {
+            return res.status(400).json({
+                error: "Repository name is required",
+            });
         }
 
-        if (!mongoose.Types.ObjectId.isValid(owner)) {
-            return res.status(400).json({ error: "Invalid User ID!" });
+        // REMOVE EXTRA SPACES + LOWERCASE
+
+        name = name.trim().toLowerCase();
+
+        // LENGTH VALIDATION
+
+        if (name.length < 3) {
+            return res.status(400).json({
+                error: "Repository name must be at least 3 characters",
+            });
         }
+
+        if (name.length > 30) {
+            return res.status(400).json({
+                error: "Repository name cannot exceed 30 characters",
+            });
+        }
+
+        // CHARACTER VALIDATION
+
+        const repoNameRegex = /^[a-zA-Z0-9-_]+$/;
+
+        if (!repoNameRegex.test(name)) {
+            return res.status(400).json({
+                error: "Repository name can only contain letters, numbers, hyphens and underscores",
+            });
+        }
+
+        // RESERVED NAMES
+
+        const reservedNames = [
+            "admin", "api", "root", "system", "backend",
+            "null", "undefined", "repocore", "support", "owner",
+        ];
+
+        if (reservedNames.includes(name)) {
+            return res.status(400).json({
+                error: "This repository name is reserved",
+            });
+        }
+
+        // VALID OWNER ID
+
+        if (!mongoose.Types.ObjectId.isValid(owner)) {
+            return res.status(400).json({
+                error: "Invalid user ID",
+            });
+        }
+
+        // DUPLICATE REPOSITORY CHECK
+
+        const existingRepository = await Repository.findOne({ owner, name });
+
+        if (existingRepository) {
+            return res.status(400).json({
+                error: "Repository with this name already exists",
+            });
+        }
+
+        // DESCRIPTION LIMIT
+
+        if (description && description.length > 300) {
+            return res.status(400).json({
+                error: "Description cannot exceed 300 characters",
+            });
+        }
+
+        // VISIBILITY VALIDATION
+
+        if (typeof visibility !== "boolean") visibility = true;
+
+        // CREATE REPOSITORY
 
         const newRepository = new Repository({
             name,
@@ -27,17 +102,31 @@ async function createRepository(req, res) {
         });
 
         const result = await newRepository.save();
+
+        // UPDATE USER
+
         await User.findByIdAndUpdate(owner, {
-            $push: { repositories: result._id }
+            $push: {
+                repositories: result._id,
+            },
         });
 
+        // SUCCESS RESPONSE
+
         res.status(201).json({
-            message: "Repository created!",
+            success: true,
+            message: "Repository created successfully",
             repositoryID: result._id,
         });
+
     } catch (err) {
-        console.error("Error during repository creation : ", err.message);
-        res.status(500).send("Server error");
+
+        console.error("Repository creation error:", err.message);
+
+        res.status(500).json({
+            success: false,
+            error: "Server error",
+        });
     }
 }
 
