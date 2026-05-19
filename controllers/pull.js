@@ -1,6 +1,7 @@
 const fs = require("fs").promises;
 const path = require("path");
 const axios = require("axios");
+const { ensureInitialized, ensureRemoteConfigured, } = require("../utils/cliValidation");
 
 
 // CLEAR CURRENT FILES
@@ -36,6 +37,10 @@ async function clearWorkingDirectory(workingDir) {
 async function pullRepo(commitHash = null) {
 
     try {
+
+        if (!await ensureInitialized()) return;
+
+        if (!await ensureRemoteConfigured()) return;
 
         const { s3, S3_BUCKET } = require("../config/aws-config");
         const projectPath = process.cwd();

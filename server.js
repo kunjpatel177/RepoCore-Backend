@@ -15,6 +15,7 @@ const path = require("path");
 const { Server } = require("socket.io");
 const { hideBin } = require("yargs/helpers");
 
+const { showGuide } = require("./controllers/guide");
 const { initRepo } = require("./controllers/init");
 const { addRepo } = require("./controllers/add");
 const { commitRepo } = require("./controllers/commit");
@@ -25,6 +26,7 @@ const { addRemote } = require("./controllers/remote");
 const { cliLogin } = require("./controllers/cliAuth");
 const { showRemote } = require("./controllers/remoteInfo");
 const { cloneRepo } = require("./controllers/clone");
+const { showStatus } = require("./controllers/status");
 const errorMiddleware = require("./middleware/errorMiddleware");
 const connectDB = require("./config/db");
 
@@ -97,7 +99,7 @@ yargs(hideBin(process.argv))
 
         "Show remote repository information",
 
-        () => {},
+        () => { },
 
         async () => {
 
@@ -110,6 +112,8 @@ yargs(hideBin(process.argv))
             type: "string"
         });
     }, argv => cloneRepo(argv.url))
+    .command("status", "Show repository status", {}, showStatus)
+    .command("guide", "Show RepoCore workflow guide", {}, showGuide)
     .demandCommand(1, "You need at least one command")
     .help().argv;
 

@@ -1,6 +1,7 @@
 const fs = require("fs").promises;
 const path = require("path");
 const { v4: uuidv4 } = require("uuid");
+const { ensureInitialized, ensureStagingNotEmpty, } = require("../utils/cliValidation");
 
 async function getAllFiles(dirPath, arrayOfFiles = []) {
     const files = await fs.readdir(dirPath);
@@ -23,8 +24,10 @@ async function commitRepo(message) {
     const repoPath = path.join(process.cwd(), ".repocore");
     const stagingPath = path.join(repoPath, "staging");
     const commitsPath = path.join(repoPath, "commits");
-
+    
     try {
+        if (!await ensureInitialized()) return;
+        if (!await ensureStagingNotEmpty()) return;
         if (!message) {
             console.log("Commit message required!");
             return;

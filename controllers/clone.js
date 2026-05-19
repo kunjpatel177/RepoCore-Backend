@@ -1,234 +1,134 @@
 const fs = require("fs").promises;
-
 const path = require("path");
-
 const axios = require("axios");
 
 async function cloneRepo(remoteUrl) {
 
     try {
 
-        const {
-            s3,
-            S3_BUCKET,
-        } = require("../config/aws-config");
+        if (!remoteUrl.startsWith("repocore://")) {
+            console.log("\nInvalid remote URL.");
+            console.log("Example:");
+            console.log("repocore://username/reponame\n");
+            return;
+        }
+
+        const { s3, S3_BUCKET } = require("../config/aws-config");
 
         // VALIDATE URL
 
-        if (
-            !remoteUrl.startsWith(
-                "repocore://"
-            )
-        ) {
-
-            console.log(
-                "Invalid remote URL"
-            );
-
+        if (!remoteUrl.startsWith("repocore://")) {
+            console.log("Invalid remote URL");
             return;
         }
 
         // PARSE URL
 
-        const cleanUrl =
-            remoteUrl.replace(
-                "repocore://",
-                ""
-            );
+        const cleanUrl = remoteUrl.replace("repocore://", "");
+        const [username, repositoryName] = cleanUrl.split("/");
 
-        const [
-            username,
-            repositoryName,
-        ] = cleanUrl.split("/");
-
-        console.log(
-            "\nCloning repository..."
-        );
+        console.log("\nCloning repository...");
 
         // FETCH REPOSITORY
 
-        const repoResponse =
-            await axios.get(
-                `http://localhost:3002/repo/name/${repositoryName}`
-            );
+        const repoResponse = await axios.get(
+            `http://localhost:3002/repo/name/${repositoryName}`
+        );
 
-        const repository =
-            repoResponse.data;
+        const repository = repoResponse.data;
 
         if (!repository) {
-
-            console.log(
-                "Repository not found!"
-            );
-
+            console.log("Repository not found!");
             return;
         }
 
         // CREATE PROJECT FOLDER
 
-        const projectPath =
-            path.join(
-                process.cwd(),
-                repository.name
-            );
+        const projectPath = path.join(process.cwd(), repository.name);
 
-        await fs.mkdir(
-            projectPath,
-            {
-                recursive: true,
-            }
-        );
+        await fs.mkdir(projectPath, {
+            recursive: true,
+        });
 
         // CREATE .REPOCORE
 
-        const repoCorePath =
-            path.join(
-                projectPath,
-                ".repocore"
-            );
+        const repoCorePath = path.join(projectPath, ".repocore");
 
-        await fs.mkdir(
-            path.join(
-                repoCorePath,
-                "commits"
-            ),
-            {
-                recursive: true,
-            }
-        );
+        await fs.mkdir(path.join(repoCorePath, "commits"), {
+            recursive: true,
+        });
 
-        await fs.mkdir(
-            path.join(
-                repoCorePath,
-                "staging"
-            ),
-            {
-                recursive: true,
-            }
-        );
+        await fs.mkdir(path.join(repoCorePath, "staging"), {
+            recursive: true,
+        });
 
         // SAVE CONFIG
 
         const config = {
-
             remote: remoteUrl,
-
-            repositoryName:
-                repository.name,
-
-            repositoryOwner:
-                username,
-
-            repositoryId:
-                repository._id,
-
+            repositoryName: repository.name,
+            repositoryOwner: username,
+            repositoryId: repository._id,
             bucket: S3_BUCKET,
         };
 
         await fs.writeFile(
-            path.join(
-                repoCorePath,
-                "config.json"
-            ),
-
-            JSON.stringify(
-                config,
-                null,
-                2
-            )
+            path.join(repoCorePath, "config.json"),
+            JSON.stringify(config, null, 2)
         );
 
-        console.log(
-            "Repository initialized"
-        );
+        console.log("Repository initialized");
 
         // EMPTY REPO
 
-        if (
-            !repository.latestCommit?._id
-        ) {
-
-            console.log(
-                "Repository is empty"
-            );
-
+        if (!repository.latestCommit?._id) {
+            console.log("Repository is empty");
             return;
         }
 
         // FETCH FILES
 
-        const commitResponse =
-            await axios.get(
-                `http://localhost:3002/commit/${repository.latestCommit._id}/files`
-            );
-
-        const files =
-            commitResponse.data;
-
-        console.log(
-            "Downloading files..."
+        const commitResponse = await axios.get(
+            `http://localhost:3002/commit/${repository.latestCommit._id}/files`
         );
+
+        const files = commitResponse.data;
+
+        console.log("Downloading files...");
 
         // DOWNLOAD FILES
 
         for (const file of files) {
 
-            const s3Object =
-                await s3
-                    .getObject({
-                        Bucket: S3_BUCKET,
-                        Key: file.s3Key,
-                    })
-                    .promise();
+            const s3Object = await s3.getObject({
+                Bucket: S3_BUCKET,
+                Key: file.s3Key,
+            }).promise();
 
             // IMPORTANT FIX
 
-            const relativePath =
-                file.filepath ||
-                file.filename;
+            const relativePath = file.filepath || file.filename;
 
-            const localFilePath =
-                path.join(
-                    projectPath,
-                    relativePath
-                );
+            const localFilePath = path.join(projectPath, relativePath);
 
             // CREATE NESTED FOLDERS
 
-            await fs.mkdir(
-                path.dirname(
-                    localFilePath
-                ),
-                {
-                    recursive: true,
-                }
-            );
+            await fs.mkdir(path.dirname(localFilePath), {
+                recursive: true,
+            });
 
             // WRITE FILE
 
-            await fs.writeFile(
-                localFilePath,
-                s3Object.Body
-            );
+            await fs.writeFile(localFilePath, s3Object.Body);
 
-            console.log(
-                `Downloaded: ${relativePath}`
-            );
+            console.log(`Downloaded: ${relativePath}`);
         }
 
-        console.log(
-            "\nClone completed successfully!"
-        );
+        console.log("\nClone completed successfully!");
 
     } catch (err) {
-
-        console.error(
-            "Clone failed:",
-            err.message
-        );
+        console.error("Clone failed:", err.message);
     }
 }
 
-module.exports = {
-    cloneRepo,
-};
+module.exports = { cloneRepo };

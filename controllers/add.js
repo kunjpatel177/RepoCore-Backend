@@ -1,6 +1,7 @@
 const fs = require("fs").promises;
 const path = require("path");
 const { loadIgnoreRules } = require("../utils/ignoreHandler");
+const { ensureInitialized, } = require("../utils/cliValidation");
 
 async function getAllFiles(dirPath, rootDir, ig, arrayOfFiles = []) {
     const files = await fs.readdir(dirPath);
@@ -40,6 +41,7 @@ async function copyToStaging(filePath, rootDir, stagingPath) {
 }
 
 async function addRepo(targetPath) {
+    if (!await ensureInitialized()) return;
     const rootDir = process.cwd();
     const ig = await loadIgnoreRules(rootDir);
     const repoPath = path.join(rootDir, ".repocore");

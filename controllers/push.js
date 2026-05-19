@@ -3,6 +3,7 @@ const path = require("path");
 
 const connectDB = require("../config/db");
 
+const { ensureInitialized, ensureLoggedIn, ensureRemoteConfigured, ensureCommitExists, } = require("../utils/cliValidation");
 const Commit = require("../models/commitModel");
 const Repository = require("../models/repoModel");
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
@@ -39,6 +40,11 @@ async function getAllFiles(dirPath) {
 async function pushRepo() {
 
     try {
+        if (!await ensureInitialized()) return;
+        if (!await ensureLoggedIn()) return;
+        if (!await ensureRemoteConfigured()) return;
+        if (!await ensureCommitExists()) return;
+        
         const { s3, S3_BUCKET } = require("../config/aws-config");
 
         // CONNECT DATABASE
@@ -151,7 +157,7 @@ async function pushRepo() {
 
                 const normalizedPath = relativePath.replace(/\\/g, "/");
 
-                if (normalizedPath.includes("node_modules")) {continue;}
+                if (normalizedPath.includes("node_modules")) { continue; }
 
                 const fileSize = fileContent.length;
 
