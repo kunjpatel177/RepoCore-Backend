@@ -4,25 +4,133 @@ const User = require("../models/userModel");
 const Issue = require("../models/issueModel");
 
 async function createIssue(req, res) {
-    const { title, description } = req.body;
-    const { id } = req.params;
 
     try {
-        const issue = new Issue({
+
+        let { title, description, repository } = req.body;
+        const author = req.user.id;
+
+        // REQUIRED VALIDATION
+
+        if (!title || !title.trim()) {
+            return res.status(400).json({
+                error: "Issue title is required",
+            });
+        }
+
+        if (!description || !description.trim()) {
+            return res.status(400).json({
+                error: "Issue description is required",
+            });
+        }
+
+        // REMOVE EXTRA SPACES
+
+        title = title.trim();
+        description = description.trim();
+
+        // TITLE LENGTH
+
+        if (title.length < 5) {
+            return res.status(400).json({
+                error: "Issue title must be at least 5 characters",
+            });
+        }
+
+        if (title.length > 100) {
+            return res.status(400).json({
+                error: "Issue title cannot exceed 100 characters",
+            });
+        }
+
+        // DESCRIPTION LENGTH
+
+        if (description.length < 10) {
+            return res.status(400).json({
+                error: "Issue description must be at least 10 characters",
+            });
+        }
+
+        if (description.length > 1000) {
+            return res.status(400).json({
+                error: "Issue description cannot exceed 1000 characters",
+            });
+        }
+
+        // REPOSITORY VALIDATION
+
+        if (!repository) {
+            return res.status(400).json({
+                error: "Repository is required",
+            });
+        }
+
+        // BASIC XSS PREVENTION
+
+        const blockedPatterns = [
+            "<script",
+            "</script>",
+            "javascript:",
+            "<iframe",
+            "</iframe>",
+        ];
+
+        const combinedText = (title + description).toLowerCase();
+
+        const containsBlockedContent = blockedPatterns.some(pattern =>
+            combinedText.includes(pattern)
+        );
+
+        if (containsBlockedContent) {
+            return res.status(400).json({
+                error: "Invalid content detected",
+            });
+        }
+
+        // DUPLICATE ISSUE CHECK
+
+        const existingIssue = await Issue.findOne({ repository, title });
+
+        if (existingIssue) {
+            return res.status(400).json({
+                error: "Issue with this title already exists",
+            });
+        }
+
+        // CREATE ISSUE
+
+        const issue = await Issue.create({
             title,
             description,
-            repository: id,
+            repository,
+            author,
+            status: "open",
         });
 
-        await issue.save();
-        await Repository.findByIdAndUpdate(id, {
-            $push: { issues: issue._id }
+        // UPDATE REPOSITORY
+
+        await Repository.findByIdAndUpdate(repository, {
+            $push: {
+                issues: issue._id,
+            },
         });
 
-        res.status(201).json(issue);
+        // RESPONSE
+
+        res.status(201).json({
+            success: true,
+            message: "Issue created successfully",
+            issue,
+        });
+
     } catch (err) {
-        console.error("Error during issue creation : ", err.message);
-        res.status(500).send("Server error");
+
+        console.error("Issue creation error:", err);
+
+        res.status(500).json({
+            success: false,
+            error: "Server error",
+        });
     }
 }
 
