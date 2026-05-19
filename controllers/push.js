@@ -5,6 +5,12 @@ const connectDB = require("../config/db");
 
 const Commit = require("../models/commitModel");
 const Repository = require("../models/repoModel");
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
+const MAX_PUSH_SIZE = 50 * 1024 * 1024;
+
+function formatBytes(bytes) {
+    return (bytes / (1024 * 1024)).toFixed(2) + " MB";
+}
 
 // GET ALL FILES RECURSIVELY
 
@@ -100,6 +106,8 @@ async function pushRepo() {
             return;
         }
 
+        let totalPushSize = 0;
+
         // PUSH EACH COMMIT
 
         for (const commitHash of unpushedCommits) {
@@ -121,6 +129,7 @@ async function pushRepo() {
             const allFiles = await getAllFiles(commitPath);
 
             const uploadedFiles = [];
+            // let totalPushSize = 0;
 
             // UPLOAD FILES
 
@@ -142,6 +151,33 @@ async function pushRepo() {
 
                 const normalizedPath = relativePath.replace(/\\/g, "/");
 
+                if (normalizedPath.includes("node_modules")) {continue;}
+
+                const fileSize = fileContent.length;
+
+                // =========================
+                // SINGLE FILE VALIDATION
+                // =========================
+
+                if (fileSize > MAX_FILE_SIZE) {
+                    console.log(`Skipped: ${normalizedPath}`);
+                    console.log(`Reason: File exceeds ${formatBytes(MAX_FILE_SIZE)}`);
+                    continue;
+                }
+
+                // =========================
+                // TOTAL PUSH VALIDATION
+                // =========================
+
+                totalPushSize += fileSize;
+
+                if (totalPushSize > MAX_PUSH_SIZE) {
+                    console.log("\nPush aborted!");
+                    console.log(`Total repository size exceeded ${formatBytes(MAX_PUSH_SIZE)}`);
+                    return;
+                }
+
+
                 // S3 PATH
 
                 const s3Key = `repositories/${repositoryId}/commits/${commitHash}/${normalizedPath}`;
@@ -160,7 +196,7 @@ async function pushRepo() {
                     filename: path.basename(filePath),
                     filepath: normalizedPath,
                     s3Key,
-                    size: fileContent.length,
+                    size: fileSize,
                 });
 
                 console.log(`Uploaded: ${normalizedPath}`);
@@ -200,6 +236,8 @@ async function pushRepo() {
         // SAVE REPOSITORY
 
         await repository.save();
+
+        console.log(`Total uploaded size: ${formatBytes(totalPushSize)}`);
 
         console.log("\nRepository pushed successfully!");
 
