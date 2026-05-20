@@ -6,6 +6,10 @@ async function cloneRepo(remoteUrl) {
 
     try {
 
+        // =========================
+        // URL VALIDATION
+        // =========================
+
         if (!remoteUrl.startsWith("repocore://")) {
             console.log("\nInvalid remote URL.");
             console.log("Example:");
@@ -13,56 +17,89 @@ async function cloneRepo(remoteUrl) {
             return;
         }
 
+        // =========================
+        // AWS CONFIG
+        // =========================
+
         const { s3, S3_BUCKET } = require("../config/aws-config");
 
-        // VALIDATE URL
-
-        if (!remoteUrl.startsWith("repocore://")) {
-            console.log("Invalid remote URL");
-            return;
-        }
-
+        // =========================
         // PARSE URL
+        // =========================
 
         const cleanUrl = remoteUrl.replace("repocore://", "");
         const [username, repositoryName] = cleanUrl.split("/");
 
+        if (!username || !repositoryName) {
+            console.log("Invalid remote format.");
+            return;
+        }
+
         console.log("\nCloning repository...");
 
-        // FETCH REPOSITORY
+        // =========================
+        // LOAD AUTH (OPTIONAL)
+        // =========================
 
-        const repoResponse = await axios.get(
-            `http://localhost:3002/repo/name/${repositoryName}`
+        let auth = null;
+
+        try {
+
+            const authPath = path.join(process.cwd(), ".repocore", "auth.json");
+            const authData = await fs.readFile(authPath, "utf-8");
+
+            auth = JSON.parse(authData);
+
+        } catch {
+
+            // NO LOGIN
+            // PUBLIC REPOS STILL ALLOWED
+        }
+
+        // =========================
+        // FETCH REPOSITORY
+        // =========================
+
+        const response = await axios.get(
+            `http://localhost:3002/repo/${username}/${repositoryName}`,
+            auth?.token ? {
+                headers: {
+                    Authorization: `Bearer ${auth.token}`,
+                },
+            } : {}
         );
 
-        const repository = repoResponse.data;
+        const repository = response.data;
+
+        // =========================
+        // VALIDATE REPO
+        // =========================
 
         if (!repository) {
             console.log("Repository not found!");
             return;
         }
 
+        // =========================
         // CREATE PROJECT FOLDER
+        // =========================
 
         const projectPath = path.join(process.cwd(), repository.name);
 
-        await fs.mkdir(projectPath, {
-            recursive: true,
-        });
+        await fs.mkdir(projectPath, { recursive: true });
 
+        // =========================
         // CREATE .REPOCORE
+        // =========================
 
         const repoCorePath = path.join(projectPath, ".repocore");
 
-        await fs.mkdir(path.join(repoCorePath, "commits"), {
-            recursive: true,
-        });
+        await fs.mkdir(path.join(repoCorePath, "commits"), { recursive: true });
+        await fs.mkdir(path.join(repoCorePath, "staging"), { recursive: true });
 
-        await fs.mkdir(path.join(repoCorePath, "staging"), {
-            recursive: true,
-        });
-
+        // =========================
         // SAVE CONFIG
+        // =========================
 
         const config = {
             remote: remoteUrl,
@@ -79,14 +116,18 @@ async function cloneRepo(remoteUrl) {
 
         console.log("Repository initialized");
 
-        // EMPTY REPO
+        // =========================
+        // EMPTY REPOSITORY
+        // =========================
 
         if (!repository.latestCommit?._id) {
             console.log("Repository is empty");
             return;
         }
 
+        // =========================
         // FETCH FILES
+        // =========================
 
         const commitResponse = await axios.get(
             `http://localhost:3002/commit/${repository.latestCommit._id}/files`
@@ -96,7 +137,9 @@ async function cloneRepo(remoteUrl) {
 
         console.log("Downloading files...");
 
+        // =========================
         // DOWNLOAD FILES
+        // =========================
 
         for (const file of files) {
 
@@ -105,7 +148,7 @@ async function cloneRepo(remoteUrl) {
                 Key: file.s3Key,
             }).promise();
 
-            // IMPORTANT FIX
+            // PRESERVE FOLDER STRUCTURE
 
             const relativePath = file.filepath || file.filename;
 
@@ -124,10 +167,18 @@ async function cloneRepo(remoteUrl) {
             console.log(`Downloaded: ${relativePath}`);
         }
 
+        // =========================
+        // SUCCESS
+        // =========================
+
         console.log("\nClone completed successfully!");
 
     } catch (err) {
-        console.error("Clone failed:", err.message);
+
+        console.error(
+            "Clone failed:",
+            err.response?.data?.message || err.message
+        );
     }
 }
 

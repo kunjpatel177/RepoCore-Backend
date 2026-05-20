@@ -3,11 +3,16 @@ const Repository = require("../models/repoModel");
 const User = require("../models/userModel");
 const Issue = require("../models/issueModel");
 const Commit = require("../models/commitModel");
+const sanitizeInput = require("../utils/sanitizeInput");
 // const { s3, S3_BUCKET } = require("../config/aws-config");
 
 async function createRepository(req, res) {
 
     let { owner, name, issues, content, description, visibility } = req.body;
+
+    name = sanitizeInput(name);
+    description = sanitizeInput(description);
+
     const normalizedName = name?.trim()?.toLowerCase();
 
     try {
@@ -194,28 +199,145 @@ async function fetchRepositoryById(req, res) {
     }
 }
 
-async function fetchRepositoryByName(req, res) {
-    const { name } = req.params;
+// async function fetchRepositoryByOwnerAndName(req, res) {
+
+//     const { username, repositoryName } = req.params;
+
+//     try {
+
+//         // FIND OWNER
+
+//         const owner = await User.findOne({
+//             username: username.toLowerCase(),
+//         });
+
+//         if (!owner) {
+//             return res.status(404).json({ error: "User not found" });
+//         }
+
+//         // FIND REPOSITORY
+
+//         const repository = await Repository.findOne({
+//             owner: owner._id,
+//             name: repositoryName.trim().toLowerCase(),
+//         })
+//             .populate("owner")
+//             .populate("issues")
+//             .populate("latestCommit")
+//             .populate("commits");
+
+//         if (!repository) {
+//             return res.status(404).json({
+//                 error: "Repository not found",
+//             });
+//         }
+
+//         // PRIVATE REPO SECURITY
+
+//         const isOwner =
+//             repository.owner._id.toString() === req.user.id;
+
+//         if (!repository.visibility && !isOwner) {
+//             return res.status(403).json({
+//                 error: "Access denied. Private repository.",
+//             });
+//         }
+
+//         // SUCCESS
+
+//         res.json(repository);
+
+//     } catch (err) {
+
+//         console.error("Repository fetch error:", err.message);
+
+//         res.status(500).send("Server error");
+//     }
+// }
+
+async function fetchRepositoryByOwnerAndName(req, res) {
+
     try {
-        const repository = await Repository.findOne({ name })
-            .populate("owner")
-            .populate("issues")
-            .populate("latestCommit")
-            .populate("commits");
 
-        if (!repository)
-            return res.status(404).json({ error: "Repository not found" });
+        const { username, repositoryName } = req.params;
 
-        res.json(repository);
+        // =========================
+        // FIND OWNER
+        // =========================
+
+        const owner = await User.findOne({ username });
+
+        if (!owner) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        // =========================
+        // FIND REPOSITORY
+        // =========================
+
+        const repository = await Repository.findOne({
+            owner: owner._id,
+            name: repositoryName,
+        })
+            .populate("owner", "username")
+            .populate("latestCommit");
+
+        if (!repository) {
+            return res.status(404).json({ message: "Repository not found" });
+        }
+
+        // =========================
+        // PRIVATE REPOSITORY CHECK
+        // =========================
+
+        if (repository.visibility === false) {
+
+            // NO TOKEN
+
+            if (!req.headers.authorization) {
+                return res.status(403).json({ message: "Private repository" });
+            }
+
+            try {
+
+                const token = req.headers.authorization.split(" ")[1];
+
+                const jwt = require("jsonwebtoken");
+
+                const decoded = jwt.verify(
+                    token,
+                    process.env.JWT_SECRET_KEY
+                );
+
+                // ONLY OWNER CAN ACCESS
+
+                if (decoded.id !== repository.owner._id.toString()) {
+                    return res.status(403).json({ message: "Access denied" });
+                }
+
+            } catch {
+                return res.status(403).json({ message: "Invalid token" });
+            }
+        }
+
+        // =========================
+        // SUCCESS
+        // =========================
+
+        res.status(200).json(repository);
+
     } catch (err) {
-        console.error("Error during fetching repository : ", err.message);
-        res.status(500).send("Server error");
+
+        console.error(err);
+
+        res.status(500).json({ message: "Server error" });
     }
 }
 
 async function fetchRepositoriesForCurrentUser(req, res) {
-    console.log(req.params);
+    console.log("----------", req.params);
     const { userID } = req.params;
+    console.log("----------", userID);
 
     try {
         const repositories =
@@ -224,6 +346,7 @@ async function fetchRepositoriesForCurrentUser(req, res) {
             })
                 .populate("latestCommit")
                 .populate("commits");
+        console.log("repos = ", repositories)
 
         if (!repositories) {
             return res.status(404).json({
@@ -239,31 +362,104 @@ async function fetchRepositoriesForCurrentUser(req, res) {
 }
 
 async function updateRepositoryById(req, res) {
+
     const { id } = req.params;
-    const { file, description } = req.body;
+    const { name, description, visibility } = req.body;
+
+    const sanitizedName = sanitizeInput(name);
+    const sanitizedDescription = sanitizeInput(description);
 
     try {
+
+        // =========================
+        // FIND REPOSITORY
+        // =========================
+
         const repository = await Repository.findById(id);
+
         if (!repository) {
             return res.status(404).json({ error: "Repository not found!" });
         }
 
-        repository.content.push(file);
-        repository.description = description;
+        // =========================
+        // OWNER VALIDATION
+        // =========================
 
-        if (visibility !== undefined && typeof visibility !== "boolean") {
-            return res.status(400).json({ error: "Visibility must be boolean" });
+        if (repository.owner.toString() !== req.user.id) {
+            return res.status(403).json({ error: "Unauthorized access" });
         }
+
+        // =========================
+        // NAME VALIDATION
+        // =========================
+
+        if (name !== undefined) {
+
+            const trimmedName = sanitizedName.trim()
+
+            if (trimmedName.length < 3) {
+                return res.status(400).json({
+                    error: "Repository name must be at least 3 characters",
+                });
+            }
+
+            // CHECK DUPLICATE
+
+            const existingRepo = await Repository.findOne({
+                owner: req.user.id,
+                name: trimmedName,
+                _id: { $ne: id },
+            });
+
+            if (existingRepo) {
+                return res.status(400).json({
+                    error: "Repository with this name already exists",
+                });
+            }
+
+            repository.name = trimmedName;
+        }
+
+        // =========================
+        // DESCRIPTION
+        // =========================
+
+        if (description !== undefined) {
+            repository.description = sanitizedDescription.trim();
+        }
+
+        // =========================
+        // VISIBILITY VALIDATION
+        // =========================
+
+        if (visibility !== undefined) {
+
+            if (typeof visibility !== "boolean") {
+                return res.status(400).json({
+                    error: "Visibility must be boolean",
+                });
+            }
+
+            repository.visibility = visibility;
+        }
+
+        // =========================
+        // SAVE
+        // =========================
 
         const updatedRepository = await repository.save();
 
         res.json({
+            success: true,
             message: "Repository updated successfully!",
             repository: updatedRepository,
         });
+
     } catch (err) {
-        console.error("Error during updating repository : ", err.message);
-        res.status(500).send("Server error");
+
+        console.error("Error updating repository:", err.message);
+
+        res.status(500).json({ error: "Server error" });
     }
 }
 
@@ -485,4 +681,6 @@ const searchRepositories = async (req, res) => {
     }
 };
 
-module.exports = { createRepository, getAllRepositories, fetchRepositoryById, fetchRepositoryByName, fetchRepositoriesForCurrentUser, updateRepositoryById, toggleVisibilityById, deleteRepositoryById, toggleStarRepository, deleteRepository, searchRepositories };
+module.exports = {
+    createRepository, getAllRepositories, fetchRepositoryById, fetchRepositoriesForCurrentUser, updateRepositoryById, toggleVisibilityById, deleteRepositoryById, toggleStarRepository, deleteRepository, searchRepositories, fetchRepositoryByOwnerAndName
+};

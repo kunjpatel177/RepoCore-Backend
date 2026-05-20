@@ -8,9 +8,9 @@ const fileRouter = require("./file.router");
 const mainRouter = express.Router();
 
 mainRouter.use(userRouter);
+mainRouter.use(commitRouter);
 mainRouter.use(repoRouter);
 mainRouter.use(issueRouter);
-mainRouter.use(commitRouter);
 mainRouter.use(fileRouter);
 
 mainRouter.get("/", (req, res) => {

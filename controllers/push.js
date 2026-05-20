@@ -4,6 +4,7 @@ const path = require("path");
 const connectDB = require("../config/db");
 
 const { ensureInitialized, ensureLoggedIn, ensureRemoteConfigured, ensureCommitExists, } = require("../utils/cliValidation");
+const sanitizeInput = require("../utils/sanitizeInput");
 const Commit = require("../models/commitModel");
 const Repository = require("../models/repoModel");
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
@@ -44,7 +45,7 @@ async function pushRepo() {
         if (!await ensureLoggedIn()) return;
         if (!await ensureRemoteConfigured()) return;
         if (!await ensureCommitExists()) return;
-        
+
         const { s3, S3_BUCKET } = require("../config/aws-config");
 
         // CONNECT DATABASE
@@ -212,7 +213,7 @@ async function pushRepo() {
 
             const commit = new Commit({
                 commitHash,
-                commitMessage: commitInfo.message,
+                commitMessage: sanitizeInput(commitInfo.message),
                 repository: repositoryId,
                 author: userId,
                 files: uploadedFiles,
@@ -220,10 +221,30 @@ async function pushRepo() {
 
             await commit.save();
 
+            // =========================
+            // UPDATE REPOSITORY
+            // =========================
+
+            await Repository.findByIdAndUpdate(
+
+                repositoryId,
+
+                {
+
+                    $push: {
+                        commits: commit._id,
+                    },
+
+                    $set: {
+                        latestCommit: commit._id,
+                    },
+                }
+            );
+
             // UPDATE REPOSITORY
 
-            repository.commits.push(commit._id);
-            repository.latestCommit = commit._id;
+            // repository.commits.push(commit._id);
+            // repository.latestCommit = commit._id;
 
             // MARK AS PUSHED
 
@@ -241,7 +262,7 @@ async function pushRepo() {
 
         // SAVE REPOSITORY
 
-        await repository.save();
+        // await repository.save();
 
         console.log(`Total uploaded size: ${formatBytes(totalPushSize)}`);
 

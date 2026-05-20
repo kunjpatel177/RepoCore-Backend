@@ -8,12 +8,16 @@ const Issue = require("../models/issueModel");
 const Repository = require("../models/repoModel");
 const asyncHandler = require("../utils/asyncHandler");
 const { validatePassword } = require("../utils/passwordValidator");
+const sanitizeInput = require("../utils/sanitizeInput");
 
 // SIGNUP
 
 const signup = async (req, res) => {
 
-    const { username, password, email } = req.body;
+    let { username, password, email } = req.body;
+
+    username = sanitizeInput(username);
+    email = sanitizeInput(email);
 
     if (!username || !email || !password)
         return res.status(400).json({ message: "All fields are required" });
@@ -62,7 +66,9 @@ const signup = async (req, res) => {
 
 const login = async (req, res) => {
 
-    const { email, password } = req.body;
+    let { email, password } = req.body;
+    
+    email = sanitizeInput(email);
 
     if (!email || !password)
         return res.status(400).json({ message: "Email and password are required" });
@@ -133,7 +139,16 @@ const getUserProfile = async (req, res) => {
 const updateUserProfile = async (req, res) => {
 
     const currentID = req.params.id;
-    const { email, password } = req.body;
+
+    if (req.user.id !== currentID) {
+
+        return res.status(403).json({
+            message: "Unauthorized access",
+        });
+    }
+    let { email, password } = req.body;
+
+    email = sanitizeInput(email);
 
     const user = await User.findById(currentID);
 
@@ -166,25 +181,6 @@ const updateUserProfile = async (req, res) => {
         success: true,
         message: "Profile updated successfully",
         user,
-    });
-};
-
-// DELETE PROFILE
-
-const deleteUserProfile = async (req, res) => {
-
-    const currentID = req.params.id;
-
-    const user = await User.findById(currentID);
-
-    if (!user)
-        return res.status(404).json({ message: "User not found" });
-
-    await User.findByIdAndDelete(currentID);
-
-    res.status(200).json({
-        success: true,
-        message: "User profile deleted successfully",
     });
 };
 
@@ -295,7 +291,6 @@ module.exports = {
     getAllUsers: asyncHandler(getAllUsers),
     getUserProfile: asyncHandler(getUserProfile),
     updateUserProfile: asyncHandler(updateUserProfile),
-    deleteUserProfile: asyncHandler(deleteUserProfile),
     toggleFollowUser: asyncHandler(toggleFollowUser),
     deleteAccount: asyncHandler(deleteAccount),
     searchUsers: asyncHandler(searchUsers),
