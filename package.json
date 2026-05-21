@@ -1,0 +1,40 @@
+{
+  "name": "repocore",
+  "version": "1.0.0",
+  "bin": {
+    "repocore": "./index.js"
+  },
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "node server.js",
+    "start": "node server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "aws-sdk": "^2.1693.0",
+    "axios": "^1.16.1",
+    "bcryptjs": "^3.0.3",
+    "body-parser": "^2.2.2",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.5.2",
+    "helmet": "^8.1.0",
+    "http": "^0.0.1-security",
+    "ignore": "^7.0.5",
+    "jsonwebtoken": "^9.0.3",
+    "mime-types": "^3.0.2",
+    "mongodb": "^7.2.0",
+    "mongoose": "^9.6.1",
+    "morgan": "^1.10.1",
+    "sanitize-html": "^2.17.4",
+    "socket.io": "^4.8.3",
+    "uuid": "^14.0.0",
+    "validator": "^13.15.35",
+    "yargs": "^18.0.0"
+  }
+}
