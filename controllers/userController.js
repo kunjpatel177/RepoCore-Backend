@@ -113,12 +113,6 @@ const getUserProfile = async (req, res) => {
     const currentID = req.params.id;
     const loggedInUserId = req.user?.id;
 
-    // const user = await User.findById(currentID)
-    //     .populate({
-    //         path: "repositories",
-    //         populate: { path: "latestCommit" },
-    //     })
-    //     .populate("followers followedUsers starRepos");
     const user = await User.findById(currentID)
 
         .populate({

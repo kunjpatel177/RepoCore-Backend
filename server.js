@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 const express = require("express");
 const dotenv = require("dotenv");
 const cors = require("cors");
@@ -133,7 +135,7 @@ async function startServer() {
     await connectDB();
 
     app.use(cors({
-        origin: ["http://localhost:5173", process.env.FRONTEND_URL],
+        origin: ["http://localhost:5173", process.env.FRONTEND_URL, "https://repocore-p0nu.onrender.com"],
         methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
         credentials: true,
     }));
@@ -145,7 +147,7 @@ async function startServer() {
 
     const io = new Server(httpServer, {
         cors: {
-            origin: ["http://localhost:5173", process.env.FRONTEND_URL],
+            origin: ["http://localhost:5173", process.env.FRONTEND_URL, "https://repocore-p0nu.onrender.com"],
             methods: ["GET", "POST"],
         },
     });
@@ -158,60 +160,3 @@ async function startServer() {
         console.log(`Server running on PORT ${port}`);
     });
 }
-
-// async function startServer() {
-//     const API_URL = process.env.API_URL || "http://localhost:3002"
-//     const app = express();
-//     const port = process.env.PORT || 3000;
-//     app.use(helmet());
-//     app.set("trust proxy", 1);
-
-//     app.use(morgan("dev"));
-
-//     // app.use(bodyParser.json());
-//     app.use(express.json());
-//     app.use(globalLimiter);
-
-//     const mongoURI = process.env.MONGODB_URI;
-
-//     await connectDB()
-
-//     app.use(cors({
-//         origin: ["http://localhost:5173"],
-//         methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-//         credentials: true,
-//     }));
-
-//     app.use("/", mainRouter);
-//     app.use(errorMiddleware);
-
-//     let user = "test";
-//     const httpServer = http.createServer(app);
-//     const io = new Server(httpServer, {
-//         cors: {
-//             origin: "*",
-//             methods: ["GET", "POST"],
-//         },
-//     });
-
-//     io.on("connection", (socket) => {
-//         socket.on("joinRoom", (userID) => {
-//             user = userID;
-//             console.log("=====");
-//             console.log(user);
-//             console.log("=====");
-//             socket.join(userID);
-//         });
-//     });
-
-//     const db = mongoose.connection;
-
-//     db.once("open", async () => {
-//         console.log("CRUD operations called");
-//         // CRUD operations
-//     });
-
-//     httpServer.listen(port, () => {
-//         console.log(`Server is running on PORT ${port}`);
-//     });
-// }

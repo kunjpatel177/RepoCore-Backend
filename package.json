@@ -1,17 +1,22 @@
 {
-  "name": "repocore",
-  "version": "1.0.0",
+  "name": "repocore-cli",
+  "version": "1.0.1",
   "bin": {
-    "repocore": "./index.js"
+    "repocore": "server.js"
   },
-  "description": "",
-  "main": "index.js",
+  "description": "Git-inspired Version Control CLI",
+  "main": "server.js",
   "scripts": {
     "dev": "node server.js",
     "start": "node server.js"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "git",
+    "cli",
+    "version-control",
+    "repocore"
+  ],
+  "author": "Kunj Patel",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
