@@ -117,66 +117,101 @@ yargs(hideBin(process.argv)).scriptName("repocore")
     .help().argv;
 
 
+
+
 async function startServer() {
-    const API_URL = process.env.API_URL || "http://localhost:3002"
+
     const app = express();
     const port = process.env.PORT || 3000;
+
     app.use(helmet());
     app.set("trust proxy", 1);
-
     app.use(morgan("dev"));
-
-    // app.use(rateLimit({
-    //     windowMs: 15 * 60 * 1000,
-    //     max: 100
-    // }));
-
-    app.use(bodyParser.json());
     app.use(express.json());
     app.use(globalLimiter);
 
-    const mongoURI = process.env.MONGODB_URI;
-
-    await connectDB()
+    await connectDB();
 
     app.use(cors({
-        origin: ["http://localhost:5173"],
+        origin: ["http://localhost:5173", process.env.FRONTEND_URL],
         methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
         credentials: true,
     }));
 
-    // app.options("*", cors());
-
     app.use("/", mainRouter);
     app.use(errorMiddleware);
 
-    let user = "test";
     const httpServer = http.createServer(app);
+
     const io = new Server(httpServer, {
         cors: {
-            origin: "*",
+            origin: ["http://localhost:5173", process.env.FRONTEND_URL],
             methods: ["GET", "POST"],
         },
     });
 
     io.on("connection", (socket) => {
-        socket.on("joinRoom", (userID) => {
-            user = userID;
-            console.log("=====");
-            console.log(user);
-            console.log("=====");
-            socket.join(userID);
-        });
-    });
-
-    const db = mongoose.connection;
-
-    db.once("open", async () => {
-        console.log("CRUD operations called");
-        // CRUD operations
+        socket.on("joinRoom", (userID) => socket.join(userID));
     });
 
     httpServer.listen(port, () => {
-        console.log(`Server is running on PORT ${port}`);
+        console.log(`Server running on PORT ${port}`);
     });
 }
+
+// async function startServer() {
+//     const API_URL = process.env.API_URL || "http://localhost:3002"
+//     const app = express();
+//     const port = process.env.PORT || 3000;
+//     app.use(helmet());
+//     app.set("trust proxy", 1);
+
+//     app.use(morgan("dev"));
+
+//     // app.use(bodyParser.json());
+//     app.use(express.json());
+//     app.use(globalLimiter);
+
+//     const mongoURI = process.env.MONGODB_URI;
+
+//     await connectDB()
+
+//     app.use(cors({
+//         origin: ["http://localhost:5173"],
+//         methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+//         credentials: true,
+//     }));
+
+//     app.use("/", mainRouter);
+//     app.use(errorMiddleware);
+
+//     let user = "test";
+//     const httpServer = http.createServer(app);
+//     const io = new Server(httpServer, {
+//         cors: {
+//             origin: "*",
+//             methods: ["GET", "POST"],
+//         },
+//     });
+
+//     io.on("connection", (socket) => {
+//         socket.on("joinRoom", (userID) => {
+//             user = userID;
+//             console.log("=====");
+//             console.log(user);
+//             console.log("=====");
+//             socket.join(userID);
+//         });
+//     });
+
+//     const db = mongoose.connection;
+
+//     db.once("open", async () => {
+//         console.log("CRUD operations called");
+//         // CRUD operations
+//     });
+
+//     httpServer.listen(port, () => {
+//         console.log(`Server is running on PORT ${port}`);
+//     });
+// }
