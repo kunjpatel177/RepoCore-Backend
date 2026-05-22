@@ -2,6 +2,7 @@ const fs = require("fs").promises;
 const path = require("path");
 const axios = require("axios");
 const { ensureInitialized, ensureRemoteConfigured, } = require("../utils/cliValidation");
+const API_URL = require("../config/api");
 
 
 // CLEAR CURRENT FILES
@@ -71,7 +72,7 @@ async function pullRepo(commitHash = null) {
         // FETCH REPOSITORY
 
         const repoResponse = await axios.get(
-            `http://localhost:3002/repo/${repositoryId}`
+            `${API_URL}/repo/${repositoryId}`
         );
 
         const repository = repoResponse.data;
@@ -92,7 +93,7 @@ async function pullRepo(commitHash = null) {
             console.log(`Finding commit: ${commitHash}`);
 
             const commitsResponse = await axios.get(
-                `http://localhost:3002/repo/${repositoryId}/commits`
+                `${API_URL}/repo/${repositoryId}/commits`
             );
 
             const commits = commitsResponse.data;
@@ -123,7 +124,7 @@ async function pullRepo(commitHash = null) {
         // FETCH FILES
 
         const filesResponse = await axios.get(
-            `http://localhost:3002/commit/${targetCommit._id}/files`
+            `${API_URL}/commit/${targetCommit._id}/files`
         );
 
         const files = filesResponse.data;

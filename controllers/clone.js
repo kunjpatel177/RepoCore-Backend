@@ -1,6 +1,7 @@
 const fs = require("fs").promises;
 const path = require("path");
 const axios = require("axios");
+const API_URL = require("../config/api");
 
 async function cloneRepo(remoteUrl) {
 
@@ -61,7 +62,7 @@ async function cloneRepo(remoteUrl) {
         // =========================
 
         const response = await axios.get(
-            `http://localhost:3002/repo/${username}/${repositoryName}`,
+            `${API_URL}/repo/${username}/${repositoryName}`,
             auth?.token ? {
                 headers: {
                     Authorization: `Bearer ${auth.token}`,
@@ -130,7 +131,7 @@ async function cloneRepo(remoteUrl) {
         // =========================
 
         const commitResponse = await axios.get(
-            `http://localhost:3002/commit/${repository.latestCommit._id}/files`
+            `${API_URL}/commit/${repository.latestCommit._id}/files`
         );
 
         const files = commitResponse.data;

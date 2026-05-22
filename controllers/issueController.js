@@ -231,7 +231,7 @@ const updateIssue = async (req, res) => {
     try {
 
         const issueId = req.params.id;
-        let { title, description } = req.body;
+        let { title, description, status } = req.body;
 
         // =========================
         // SANITIZE
@@ -287,17 +287,17 @@ const updateIssue = async (req, res) => {
         // XSS PREVENTION
         // =========================
 
-        const blockedPatterns = ["<script", "</script>", "javascript:", "<iframe", "</iframe>"];
+        // const blockedPatterns = ["<script", "</script>", "javascript:", "<iframe", "</iframe>"];
 
-        const combinedText = (title + description).toLowerCase();
+        // const combinedText = (title + description).toLowerCase();
 
-        const containsBlockedContent = blockedPatterns.some(
-            pattern => combinedText.includes(pattern)
-        );
+        // const containsBlockedContent = blockedPatterns.some(
+        //     pattern => combinedText.includes(pattern)
+        // );
 
-        if (containsBlockedContent) {
-            return res.status(400).json({ error: "Invalid content detected" });
-        }
+        // if (containsBlockedContent) {
+        //     return res.status(400).json({ error: "Invalid content detected" });
+        // }
 
         // =========================
         // FIND ISSUE
@@ -337,6 +337,7 @@ const updateIssue = async (req, res) => {
 
         issue.title = title;
         issue.description = description;
+        issue.status = status
 
         await issue.save();
 

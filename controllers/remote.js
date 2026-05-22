@@ -3,6 +3,7 @@ const fs = require("fs").promises;
 const path = require("path");
 
 const axios = require("axios");
+const API_URL = require("../config/api");
 
 async function addRemote(remoteUrl) {
 
@@ -163,7 +164,7 @@ async function addRemote(remoteUrl) {
         const response =
             await axios.get(
 
-                `http://localhost:3002/repo/${username}/${repositoryName}`,
+                `${API_URL}/repo/${username}/${repositoryName}`,
 
                 {
                     headers: {

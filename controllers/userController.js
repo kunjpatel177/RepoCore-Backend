@@ -67,7 +67,7 @@ const signup = async (req, res) => {
 const login = async (req, res) => {
 
     let { email, password } = req.body;
-    
+
     email = sanitizeInput(email);
 
     if (!email || !password)
@@ -113,12 +113,35 @@ const getUserProfile = async (req, res) => {
     const currentID = req.params.id;
     const loggedInUserId = req.user?.id;
 
+    // const user = await User.findById(currentID)
+    //     .populate({
+    //         path: "repositories",
+    //         populate: { path: "latestCommit" },
+    //     })
+    //     .populate("followers followedUsers starRepos");
     const user = await User.findById(currentID)
+
         .populate({
             path: "repositories",
-            populate: { path: "latestCommit" },
+
+            populate: {
+                path: "latestCommit",
+            },
         })
-        .populate("followers followedUsers starRepos");
+
+        .populate(
+            "followers",
+            "username email"
+        )
+
+        .populate(
+            "followedUsers",
+            "username email"
+        )
+
+        .populate(
+            "starRepos"
+        );
 
     if (!user) {
         return res.status(404).json({ message: "User not found" });

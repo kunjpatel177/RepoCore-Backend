@@ -2,6 +2,8 @@ const fs = require("fs").promises;
 const path = require("path");
 const axios = require("axios");
 const {ensureInitialized} = require("../utils/cliValidation");
+const API_URL = require("../config/api");
+
 
 async function cliLogin(email, password) {
 
@@ -9,7 +11,7 @@ async function cliLogin(email, password) {
 
         if (!await ensureInitialized()) return;
         const response = await axios.post(
-            "http://localhost:3002/login",
+            `${API_URL}/login`,
             { email, password }
         );
 

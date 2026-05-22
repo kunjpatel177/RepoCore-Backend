@@ -11,7 +11,6 @@ const mainRouter = require("./routes/main.router");
 const yargs = require("yargs");
 const path = require("path");
 
-
 const { Server } = require("socket.io");
 const { hideBin } = require("yargs/helpers");
 
@@ -21,7 +20,6 @@ const { addRepo } = require("./controllers/add");
 const { commitRepo } = require("./controllers/commit");
 const { pushRepo } = require("./controllers/push");
 const { pullRepo } = require("./controllers/pull");
-// const { revertRepo } = require("./controllers/revert");
 const { addRemote } = require("./controllers/remote");
 const { cliLogin } = require("./controllers/cliAuth");
 const { showRemote } = require("./controllers/remoteInfo");
@@ -36,7 +34,7 @@ dotenv.config({
     path: path.join(__dirname, ".env"),
 });
 
-yargs(hideBin(process.argv))
+yargs(hideBin(process.argv)).scriptName("repocore")
     .command("start", "Starts a new server", {}, startServer)
     .command("init", "Initialise a new repository", {}, initRepo)
     .command(
@@ -120,6 +118,7 @@ yargs(hideBin(process.argv))
 
 
 async function startServer() {
+    const API_URL = process.env.API_URL || "http://localhost:3002"
     const app = express();
     const port = process.env.PORT || 3000;
     app.use(helmet());
