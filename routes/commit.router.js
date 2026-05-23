@@ -13,6 +13,12 @@ commitRouter.get(
     commitController.getRepositoryCommits
 );
 
+commitRouter.post(
+    "/commit/push",
+    authMiddleware,
+    commitController.pushCommit
+);
+
 commitRouter.delete("/commit/:id", authMiddleware, commitController.deleteCommit);
 
 module.exports = commitRouter;

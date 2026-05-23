@@ -1,162 +1,160 @@
-#!/usr/bin/env node
-
 const express = require("express");
 const dotenv = require("dotenv");
 const cors = require("cors");
-const mongoose = require("mongoose");
 const bodyParser = require("body-parser");
 const http = require("http");
 const helmet = require("helmet");
-const rateLimit = require("express-rate-limit");
 const morgan = require("morgan");
-const mainRouter = require("./routes/main.router");
-const yargs = require("yargs");
 const path = require("path");
 
 const { Server } = require("socket.io");
-const { hideBin } = require("yargs/helpers");
 
-const { showGuide } = require("./controllers/guide");
-const { initRepo } = require("./controllers/init");
-const { addRepo } = require("./controllers/add");
-const { commitRepo } = require("./controllers/commit");
-const { pushRepo } = require("./controllers/push");
-const { pullRepo } = require("./controllers/pull");
-const { addRemote } = require("./controllers/remote");
-const { cliLogin } = require("./controllers/cliAuth");
-const { showRemote } = require("./controllers/remoteInfo");
-const { cloneRepo } = require("./controllers/clone");
-const { showStatus } = require("./controllers/status");
+const mainRouter = require("./routes/main.router");
 const errorMiddleware = require("./middleware/errorMiddleware");
+
 const { globalLimiter } = require("./middleware/rateLimitMiddleware");
+
 const connectDB = require("./config/db");
 
+// =========================
+// ENV CONFIG
+// =========================
 
-dotenv.config({
-    path: path.join(__dirname, ".env"),
-});
+dotenv.config({ path: path.join(__dirname, ".env") });
 
-yargs(hideBin(process.argv)).scriptName("repocore")
-    .command("start", "Starts a new server", {}, startServer)
-    .command("init", "Initialise a new repository", {}, initRepo)
-    .command(
-        "add <file>",
-        "Add a file to the repository",
-        (yargs) => {
-            yargs.positional("file", {
-                describe: "File to add to the staging area",
-                type: "string",
-            });
-        },
-        (argv) => {
-            addRepo(argv.file);
-        }
-    )
-    .command(
-        "commit <message>",
-        "Commit the staged files",
-        (yargs) => {
-            yargs.positional("message", {
-                describe: "Commit message",
-                type: "string",
-            });
-        },
-        (argv) => {
-            commitRepo(argv.message);
-        }
-    )
-    .command("push", "Push commits to S3", {}, pushRepo)
-    .command(
-        "pull [commitHash]",
-        "Pull latest or specific commit from S3",
-        (yargs) => {
-            yargs.positional("commitHash", {
-                describe: "Optional commit hash to pull",
-                type: "string",
-            });
-        },
-        (argv) => {
-            pullRepo(argv.commitHash);
-        }
-    )
-    .command("remote <url>", "Configure remote repository", (yargs) => {
-        yargs.positional("url", {
-            describe: "Remote repository URL",
-            type: "string",
-        });
-    }, (argv) => {
-        addRemote(argv.url);
-    })
-    .command("login <email> <password>", "Login to RepoCore CLI", (yargs) => {
-        yargs
-            .positional("email", { type: "string" })
-            .positional("password", { type: "string" });
-    }, (argv) => {
-        cliLogin(argv.email, argv.password);
-    })
-    .command(
-
-        "remote-info",
-
-        "Show remote repository information",
-
-        () => { },
-
-        async () => {
-
-            await showRemote();
-        }
-    )
-    .command("clone <url>", "Clone remote repository", yargs => {
-        yargs.positional("url", {
-            describe: "Repository URL",
-            type: "string"
-        });
-    }, argv => cloneRepo(argv.url))
-    .command("status", "Show repository status", {}, showStatus)
-    .command("guide", "Show RepoCore workflow guide", {}, showGuide)
-    .demandCommand(1, "You need at least one command")
-    .help().argv;
-
-
-
+// =========================
+// START SERVER
+// =========================
 
 async function startServer() {
 
-    const app = express();
-    const port = process.env.PORT || 3000;
+    try {
 
-    app.use(helmet());
-    app.set("trust proxy", 1);
-    app.use(morgan("dev"));
-    app.use(express.json());
-    app.use(globalLimiter);
+        // =========================
+        // EXPRESS APP
+        // =========================
 
-    await connectDB();
+        const app = express();
+        const port = process.env.PORT || 3000;
 
-    app.use(cors({
-        origin: ["http://localhost:5173", process.env.FRONTEND_URL, "https://repocore-p0nu.onrender.com"],
-        methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-        credentials: true,
-    }));
+        // =========================
+        // SECURITY
+        // =========================
 
-    app.use("/", mainRouter);
-    app.use(errorMiddleware);
+        app.use(helmet());
+        app.set("trust proxy", 1);
 
-    const httpServer = http.createServer(app);
+        // =========================
+        // LOGGING
+        // =========================
 
-    const io = new Server(httpServer, {
-        cors: {
-            origin: ["http://localhost:5173", process.env.FRONTEND_URL, "https://repocore-p0nu.onrender.com"],
-            methods: ["GET", "POST"],
-        },
-    });
+        app.use(morgan("dev"));
 
-    io.on("connection", (socket) => {
-        socket.on("joinRoom", (userID) => socket.join(userID));
-    });
+        // =========================
+        // BODY LIMIT
+        // =========================
 
-    httpServer.listen(port, () => {
-        console.log(`Server running on PORT ${port}`);
-    });
+        app.use(express.json({ limit: "100mb" }));
+        app.use(bodyParser.json({ limit: "100mb" }));
+
+        // =========================
+        // RATE LIMITER
+        // =========================
+
+        app.use(globalLimiter);
+
+        // =========================
+        // DATABASE
+        // =========================
+
+        await connectDB();
+
+        // =========================
+        // CORS
+        // =========================
+
+        const allowedOrigins = [
+            "http://localhost:5173",
+            process.env.FRONTEND_URL,
+            "https://repocore-p0nu.onrender.com",
+        ];
+
+        app.use(cors({
+
+            origin: function (origin, callback) {
+
+                // ALLOW POSTMAN / CLI
+
+                if (!origin) return callback(null, true);
+
+                if (allowedOrigins.includes(origin)) {
+                    callback(null, true);
+                } else {
+                    callback(new Error("Not allowed by CORS"));
+                }
+            },
+
+            methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+            credentials: true,
+        }));
+
+        // =========================
+        // ROUTES
+        // =========================
+
+        app.use("/", mainRouter);
+
+        // =========================
+        // ERROR HANDLER
+        // =========================
+
+        app.use(errorMiddleware);
+
+        // =========================
+        // HTTP SERVER
+        // =========================
+
+        const httpServer = http.createServer(app);
+
+        // =========================
+        // SOCKET IO
+        // =========================
+
+        const io = new Server(httpServer, {
+            cors: {
+                origin: allowedOrigins,
+                methods: ["GET", "POST"],
+            },
+        });
+
+        // =========================
+        // SOCKET EVENTS
+        // =========================
+
+        io.on("connection", (socket) => {
+
+            socket.on("joinRoom", (userID) => {
+                socket.join(userID);
+            });
+
+        });
+
+        // =========================
+        // START SERVER
+        // =========================
+
+        httpServer.listen(port, () => {
+            console.log(`Server running on PORT ${port}`);
+        });
+
+    } catch (err) {
+
+        console.error("Server startup failed:", err.message);
+    }
 }
+
+// =========================
+// START APP
+// =========================
+
+startServer();
