@@ -304,19 +304,11 @@ const updateIssue = async (req, res) => {
         // =========================
 
         const issue = await Issue.findById(issueId);
-
+        
         if (!issue) {
             return res.status(404).json({ error: "Issue not found" });
         }
-
-        // =========================
-        // AUTHORIZATION
-        // =========================
-
-        if (issue.author.toString() !== req.user.id) {
-            return res.status(403).json({ error: "Unauthorized access" });
-        }
-
+        
         // =========================
         // DUPLICATE ISSUE CHECK
         // =========================
