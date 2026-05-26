@@ -43,7 +43,6 @@ The backend exposes REST APIs used by both the web frontend and RepoCore CLI.
 ## Collaboration
 - Followers & following system
 - User profile management
-- Real-time communication using Socket.IO
 
 ## RepoCore CLI Support
 - Login authentication
