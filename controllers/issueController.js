@@ -71,28 +71,6 @@ async function createIssue(req, res) {
             });
         }
 
-        // BASIC XSS PREVENTION
-
-        const blockedPatterns = [
-            "<script",
-            "</script>",
-            "javascript:",
-            "<iframe",
-            "</iframe>",
-        ];
-
-        const combinedText = (title + description).toLowerCase();
-
-        const containsBlockedContent = blockedPatterns.some(pattern =>
-            combinedText.includes(pattern)
-        );
-
-        if (containsBlockedContent) {
-            return res.status(400).json({
-                error: "Invalid content detected",
-            });
-        }
-
         // DUPLICATE ISSUE CHECK
 
         const existingIssue = await Issue.findOne({ repository, title });
@@ -233,16 +211,12 @@ const updateIssue = async (req, res) => {
         const issueId = req.params.id;
         let { title, description, status } = req.body;
 
-        // =========================
         // SANITIZE
-        // =========================
 
         title = sanitizeInput(title);
         description = sanitizeInput(description);
 
-        // =========================
         // REQUIRED VALIDATION
-        // =========================
 
         if (!title || !title.trim()) {
             return res.status(400).json({ error: "Issue title is required" });
@@ -252,16 +226,12 @@ const updateIssue = async (req, res) => {
             return res.status(400).json({ error: "Issue description is required" });
         }
 
-        // =========================
         // REMOVE EXTRA SPACES
-        // =========================
 
         title = title.trim();
         description = description.trim();
 
-        // =========================
         // TITLE LENGTH
-        // =========================
 
         if (title.length < 5) {
             return res.status(400).json({ error: "Issue title must be at least 5 characters" });
@@ -271,9 +241,7 @@ const updateIssue = async (req, res) => {
             return res.status(400).json({ error: "Issue title cannot exceed 100 characters" });
         }
 
-        // =========================
         // DESCRIPTION LENGTH
-        // =========================
 
         if (description.length < 10) {
             return res.status(400).json({ error: "Issue description must be at least 10 characters" });
@@ -283,25 +251,7 @@ const updateIssue = async (req, res) => {
             return res.status(400).json({ error: "Issue description cannot exceed 1000 characters" });
         }
 
-        // =========================
-        // XSS PREVENTION
-        // =========================
-
-        // const blockedPatterns = ["<script", "</script>", "javascript:", "<iframe", "</iframe>"];
-
-        // const combinedText = (title + description).toLowerCase();
-
-        // const containsBlockedContent = blockedPatterns.some(
-        //     pattern => combinedText.includes(pattern)
-        // );
-
-        // if (containsBlockedContent) {
-        //     return res.status(400).json({ error: "Invalid content detected" });
-        // }
-
-        // =========================
         // FIND ISSUE
-        // =========================
 
         const issue = await Issue.findById(issueId);
         
@@ -309,9 +259,7 @@ const updateIssue = async (req, res) => {
             return res.status(404).json({ error: "Issue not found" });
         }
         
-        // =========================
         // DUPLICATE ISSUE CHECK
-        // =========================
 
         const existingIssue = await Issue.findOne({
             repository: issue.repository,
@@ -323,9 +271,7 @@ const updateIssue = async (req, res) => {
             return res.status(400).json({ error: "Issue with this title already exists" });
         }
 
-        // =========================
         // UPDATE ISSUE
-        // =========================
 
         issue.title = title;
         issue.description = description;
@@ -333,9 +279,7 @@ const updateIssue = async (req, res) => {
 
         await issue.save();
 
-        // =========================
         // RESPONSE
-        // =========================
 
         res.status(200).json({
             success: true,

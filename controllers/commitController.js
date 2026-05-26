@@ -21,9 +21,7 @@ const deleteCommit = async (req, res) => {
 
         const commitId = req.params.id;
 
-        // =========================
         // FIND COMMIT
-        // =========================
 
         const commit = await Commit.findById(commitId);
 
@@ -31,9 +29,7 @@ const deleteCommit = async (req, res) => {
             return res.status(404).json({ error: "Commit not found" });
         }
 
-        // =========================
         // FIND REPOSITORY
-        // =========================
 
         const repository = await Repository.findById(commit.repository);
 
@@ -41,17 +37,13 @@ const deleteCommit = async (req, res) => {
             return res.status(404).json({ error: "Repository not found" });
         }
 
-        // =========================
         // OWNER VALIDATION
-        // =========================
 
         if (repository.owner.toString() !== req.user.id) {
             return res.status(403).json({ error: "Unauthorized access" });
         }
 
-        // =========================
         // DELETE S3 FILES
-        // =========================
 
         const objectsToDelete = [];
 
@@ -69,17 +61,13 @@ const deleteCommit = async (req, res) => {
             }).promise();
         }
 
-        // =========================
         // DELETE COMMIT FROM REPO
-        // =========================
 
         repository.commits = repository.commits.filter(
             id => id.toString() !== commitId
         );
 
-        // =========================
         // UPDATE LATEST COMMIT
-        // =========================
 
         const remainingCommits = await Commit.find({
             repository: repository._id,
@@ -91,15 +79,11 @@ const deleteCommit = async (req, res) => {
 
         await repository.save();
 
-        // =========================
         // DELETE COMMIT
-        // =========================
 
         await Commit.findByIdAndDelete(commitId);
 
-        // =========================
         // SUCCESS
-        // =========================
 
         res.status(200).json({
             success: true,
@@ -125,9 +109,7 @@ const pushCommit = async (req, res) => {
         const author = req.user.id;
         // const author = "6a0ec1a4b81542a99d5fdd31";
 
-        // =========================
         // VALIDATION
-        // =========================
 
         if (!repositoryId) {
             return res.status(400).json({ error: "Repository ID required" });
@@ -145,9 +127,7 @@ const pushCommit = async (req, res) => {
             return res.status(400).json({ error: "Files required" });
         }
 
-        // =========================
         // FETCH REPOSITORY
-        // =========================
 
         const repository = await Repository.findById(repositoryId);
 
@@ -155,9 +135,7 @@ const pushCommit = async (req, res) => {
             return res.status(404).json({ error: "Repository not found" });
         }
 
-        // =========================
         // OWNER CHECK
-        // =========================
 
         // if (repository.owner.toString() !== author) {
         //     return res.status(403).json({ error: "Access denied" });
@@ -179,9 +157,7 @@ const pushCommit = async (req, res) => {
             });
         }
 
-        // =========================
         // DUPLICATE COMMIT CHECK
-        // =========================
 
         const existingCommit = await Commit.findOne({
             repository: repositoryId,
@@ -192,9 +168,7 @@ const pushCommit = async (req, res) => {
             return res.status(400).json({ error: "Commit already exists" });
         }
 
-        // =========================
         // UPLOAD FILES
-        // =========================
 
         const uploadedFiles = [];
 
@@ -230,9 +204,7 @@ const pushCommit = async (req, res) => {
             console.log(`Uploaded: ${filepath}`);
         }
 
-        // =========================
         // CREATE COMMIT
-        // =========================
 
         const commit = new Commit({
             commitHash,
@@ -244,18 +216,14 @@ const pushCommit = async (req, res) => {
 
         await commit.save();
 
-        // =========================
         // UPDATE REPOSITORY
-        // =========================
 
         await Repository.findByIdAndUpdate(repositoryId, {
             $push: { commits: commit._id },
             $set: { latestCommit: commit._id },
         });
 
-        // =========================
         // RESPONSE
-        // =========================
 
         res.status(200).json({
             success: true,

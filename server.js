@@ -84,7 +84,6 @@ async function startServer() {
             origin: function (origin, callback) {
 
                 // ALLOW POSTMAN / CLI
-
                 if (!origin) return callback(null, true);
 
                 if (allowedOrigins.includes(origin)) {

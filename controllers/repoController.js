@@ -4,7 +4,6 @@ const User = require("../models/userModel");
 const Issue = require("../models/issueModel");
 const Commit = require("../models/commitModel");
 const sanitizeInput = require("../utils/sanitizeInput");
-// const { s3, S3_BUCKET } = require("../config/aws-config");
 
 async function createRepository(req, res) {
 
@@ -88,15 +87,6 @@ async function createRepository(req, res) {
             });
         }
 
-        // // DUPLICATE REPOSITORY CHECK
-
-        // const existingRepository = await Repository.findOne({ owner, name });
-
-        // if (existingRepository) {
-        //     return res.status(400).json({
-        //         error: "Repository with this name already exists",
-        //     });
-        // }
 
         // DESCRIPTION LIMIT
 
@@ -335,25 +325,20 @@ async function fetchRepositoryByOwnerAndName(req, res) {
 }
 
 async function fetchRepositoriesForCurrentUser(req, res) {
-    console.log("----------", req.params);
     const { userID } = req.params;
-    console.log("----------", userID);
 
     try {
-        const repositories =
-            await Repository.find({
-                owner: userID,
-            })
-                .populate("latestCommit")
-                .populate("commits");
-        console.log("repos = ", repositories)
+        const repositories = await Repository.find({
+            owner: userID,
+        })
+            .populate("latestCommit")
+            .populate("commits");
 
         if (!repositories) {
             return res.status(404).json({
                 error: "Repositories fetch failed!",
             });
         }
-        console.log(repositories);
         res.json({ message: "Repositories found!", repositories });
     } catch (err) {
         console.error("Error during fetching user repositories : ", err.message);

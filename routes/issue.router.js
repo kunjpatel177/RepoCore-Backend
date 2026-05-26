@@ -7,7 +7,6 @@ const issueRouter = express.Router();
 
 issueRouter.put("/issue/update/:id", authMiddleware, issueController.updateIssue);
 issueRouter.post("/issue/create/:id", authMiddleware, issueLimiter, issueController.createIssue);
-// issueRouter.put("/issue/update/:id", authMiddleware, issueController.updateIssueById);
 issueRouter.delete("/issue/delete/:id", authMiddleware, issueController.deleteIssueById);
 issueRouter.get("/issue/all/:id", issueController.getAllIssues);
 issueRouter.get("/issue/:id", issueController.getIssueById);
