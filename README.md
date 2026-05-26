@@ -1,9 +1,3 @@
-
----
-
-# BACKEND README.md
-
-```md id="l8g5sx"
 # RepoCore Backend
 
 RepoCore Backend powers a Git-inspired distributed version control platform with cloud-based repository hosting, authentication, commit management, issue tracking, and CLI integration.
