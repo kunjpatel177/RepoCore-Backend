@@ -15,63 +15,43 @@ const errorMiddleware = require("./middleware/errorMiddleware");
 const { globalLimiter } = require("./middleware/rateLimitMiddleware");
 
 const connectDB = require("./config/db");
-
-// =========================
-// ENV CONFIG
-// =========================
+// ENV 
 
 dotenv.config({ path: path.join(__dirname, ".env") });
-
-// =========================
-// START SERVER
-// =========================
+// START 
 
 async function startServer() {
 
     try {
 
-        // =========================
         // EXPRESS APP
-        // =========================
 
         const app = express();
         const port = process.env.PORT || 3000;
 
-        // =========================
         // SECURITY
-        // =========================
 
         app.use(helmet());
         app.set("trust proxy", 1);
 
-        // =========================
         // LOGGING
-        // =========================
 
         app.use(morgan("dev"));
 
-        // =========================
         // BODY LIMIT
-        // =========================
 
         app.use(express.json({ limit: "100mb" }));
         app.use(bodyParser.json({ limit: "100mb" }));
 
-        // =========================
         // RATE LIMITER
-        // =========================
 
         app.use(globalLimiter);
 
-        // =========================
         // DATABASE
-        // =========================
 
         await connectDB();
 
-        // =========================
         // CORS
-        // =========================
 
         const allowedOrigins = [
             "http://localhost:5173",
@@ -97,27 +77,19 @@ async function startServer() {
             credentials: true,
         }));
 
-        // =========================
         // ROUTES
-        // =========================
 
         app.use("/", mainRouter);
 
-        // =========================
         // ERROR HANDLER
-        // =========================
 
         app.use(errorMiddleware);
 
-        // =========================
         // HTTP SERVER
-        // =========================
 
         const httpServer = http.createServer(app);
 
-        // =========================
         // SOCKET IO
-        // =========================
 
         const io = new Server(httpServer, {
             cors: {
@@ -126,9 +98,7 @@ async function startServer() {
             },
         });
 
-        // =========================
         // SOCKET EVENTS
-        // =========================
 
         io.on("connection", (socket) => {
 
@@ -138,9 +108,7 @@ async function startServer() {
 
         });
 
-        // =========================
         // START SERVER
-        // =========================
 
         httpServer.listen(port, () => {
             console.log(`Server running on PORT ${port}`);
@@ -151,9 +119,6 @@ async function startServer() {
         console.error("Server startup failed:", err.message);
     }
 }
-
-// =========================
-// START APP
-// =========================
+// START 
 
 startServer();
