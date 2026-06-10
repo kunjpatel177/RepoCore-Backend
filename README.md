@@ -168,6 +168,7 @@ npm install -g repocore-cli
 
 ```bash
 repocore guide
+```
 
 ## Login
 
@@ -185,11 +186,15 @@ repocore init
 
 ```bash
 repocore add file_name
+```
 
+or 
+
+```bash
 repocore add folder_name
 ```
 
-## Add Files
+## Add all Files
 
 ```bash
 repocore add .
