@@ -11,9 +11,7 @@ const { validatePassword } = require("../utils/passwordValidator");
 const sanitizeInput = require("../utils/sanitizeInput");
 
 // SIGNUP
-
 const signup = async (req, res) => {
-
     let { username, password, email } = req.body;
 
     username = sanitizeInput(username);
@@ -63,17 +61,22 @@ const signup = async (req, res) => {
 };
 
 // LOGIN
-
 const login = async (req, res) => {
-
     let { email, password } = req.body;
 
     email = sanitizeInput(email);
 
-    if (!email || !password)
+    if (!email && !password)
         return res.status(400).json({ message: "Email and password are required" });
+    if (!email)
+        return res.status(400).json({ message: "Email is required" });
+    if (!password)
+        return res.status(400).json({ message: "Password is required" });
+    // if (!email || !password)
+    //     return res.status(400).json({ message: "Email and password are required" });
 
     const user = await User.findOne({ email });
+    console.log(user);
 
     if (!user)
         return res.status(400).json({ message: "Invalid credentials" });
@@ -98,44 +101,32 @@ const login = async (req, res) => {
 };
 
 // GET ALL USERS
-
 const getAllUsers = async (req, res) => {
-
     const users = await User.find({}).select("-password");
-
     res.status(200).json(users);
 };
 
 // GET USER PROFILE
-
 const getUserProfile = async (req, res) => {
-
     const currentID = req.params.id;
     const loggedInUserId = req.user?.id;
 
     const user = await User.findById(currentID)
-
         .populate({
             path: "repositories",
-
-            populate: {
-                path: "latestCommit",
-            },
+            populate: [
+                {
+                    path: "latestCommit",
+                },
+                {
+                    path: "commits",
+                    select: "createdAt",
+                },
+            ],
         })
-
-        .populate(
-            "followers",
-            "username email"
-        )
-
-        .populate(
-            "followedUsers",
-            "username email"
-        )
-
-        .populate(
-            "starRepos"
-        );
+        .populate("followers", "username email")
+        .populate("followedUsers", "username email")
+        .populate("starRepos");
 
     if (!user) {
         return res.status(404).json({ message: "User not found" });
@@ -152,13 +143,10 @@ const getUserProfile = async (req, res) => {
 };
 
 // UPDATE PROFILE
-
 const updateUserProfile = async (req, res) => {
-
     const currentID = req.params.id;
 
     if (req.user.id !== currentID) {
-
         return res.status(403).json({
             message: "Unauthorized access",
         });
@@ -178,7 +166,6 @@ const updateUserProfile = async (req, res) => {
     if (email) user.email = email;
 
     if (password) {
-
         const passwordValidation = validatePassword(password);
 
         if (!passwordValidation.valid) {
@@ -202,9 +189,7 @@ const updateUserProfile = async (req, res) => {
 };
 
 // FOLLOW / UNFOLLOW USER
-
 const toggleFollowUser = async (req, res) => {
-
     const currentUserId = req.user.id;
     const targetUserId = req.params.id;
 
@@ -220,17 +205,13 @@ const toggleFollowUser = async (req, res) => {
     const alreadyFollowing = currentUser.followedUsers.includes(targetUserId);
 
     if (alreadyFollowing) {
-
         currentUser.followedUsers = currentUser.followedUsers.filter(
             id => id.toString() !== targetUserId
         );
-
         targetUser.followers = targetUser.followers.filter(
             id => id.toString() !== currentUserId
         );
-
     } else {
-
         currentUser.followedUsers.push(targetUserId);
         targetUser.followers.push(currentUserId);
     }
@@ -246,16 +227,33 @@ const toggleFollowUser = async (req, res) => {
 };
 
 // DELETE ACCOUNT
-
 const deleteAccount = async (req, res) => {
-
     try {
-
+        const { s3, S3_BUCKET } = require("../config/aws-config");
         const userId = req.user.id;
-
         const repositories = await Repository.find({ owner: userId });
 
         for (const repo of repositories) {
+            const commits = await Commit.find({ repository: repo._id });
+
+            // PREPARE S3 OBJECTS
+            const objectsToDelete = [];
+
+            for (const commit of commits) {
+                for (const file of commit.files) {
+                    if (file.s3Key) {
+                        objectsToDelete.push({ Key: file.s3Key });
+                    }
+                }
+            }
+
+            // DELETE S3 FILES
+            if (objectsToDelete.length > 0) {
+                await s3.deleteObjects({
+                    Bucket: S3_BUCKET,
+                    Delete: { Objects: objectsToDelete },
+                }).promise();
+            }
 
             await Commit.deleteMany({ repository: repo._id });
             await Issue.deleteMany({ repository: repo._id });
@@ -263,23 +261,18 @@ const deleteAccount = async (req, res) => {
         }
 
         await User.findByIdAndDelete(userId);
-
         res.json({ message: "Account deleted successfully" });
-
     } catch (err) {
-
         console.error(err);
-
         res.status(500).json({
             message: "Failed to delete account",
         });
     }
 };
 
+// SEARCH USERS
 const searchUsers = async (req, res) => {
-
     try {
-
         const query = req.query.q;
 
         if (!query) return res.json([]);
@@ -288,14 +281,11 @@ const searchUsers = async (req, res) => {
             username: { $regex: query, $options: "i" },
         })
             .select("username email followers repositories")
-            .limit(10);
+            .limit(6);
 
         res.json(users);
-
     } catch (err) {
-
         console.error(err);
-
         res.status(500).json({
             message: "Failed to search users",
         });

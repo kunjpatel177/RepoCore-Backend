@@ -1,8 +1,6 @@
 const rateLimit = require("express-rate-limit");
 
-// =========================
 // GLOBAL API LIMIT
-// =========================
 
 const globalLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
@@ -15,9 +13,7 @@ const globalLimiter = rateLimit({
     legacyHeaders: false,
 });
 
-// =========================
 // LOGIN LIMIT
-// =========================
 
 const loginLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
@@ -30,9 +26,7 @@ const loginLimiter = rateLimit({
     legacyHeaders: false,
 });
 
-// =========================
 // SIGNUP LIMIT
-// =========================
 
 const signupLimiter = rateLimit({
     windowMs: 60 * 60 * 1000,
@@ -45,9 +39,7 @@ const signupLimiter = rateLimit({
     legacyHeaders: false,
 });
 
-// =========================
 // REPOSITORY CREATION LIMIT
-// =========================
 
 const repositoryLimiter = rateLimit({
     windowMs: 10 * 60 * 1000,
@@ -60,9 +52,7 @@ const repositoryLimiter = rateLimit({
     legacyHeaders: false,
 });
 
-// =========================
 // ISSUE CREATION LIMIT
-// =========================
 
 const issueLimiter = rateLimit({
     windowMs: 10 * 60 * 1000,

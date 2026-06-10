@@ -15,7 +15,7 @@ AWS.config.update({
     ),
 });
 
-// Optional: disable EC2 metadata lookup (prevents your exact error)
+// Optional: disable EC2 metadata lookup
 AWS.config.credentials.get(() => { }); // forces credential resolution
 
 const s3 = new AWS.S3({

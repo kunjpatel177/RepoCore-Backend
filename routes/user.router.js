@@ -10,7 +10,6 @@ userRouter.post("/signup", signupLimiter, userController.signup);
 userRouter.post("/login", loginLimiter, userController.login);
 userRouter.get("/userProfile/:id", authMiddleware, userController.getUserProfile);
 userRouter.put("/updateProfile/:id", authMiddleware, userController.updateUserProfile);
-// userRouter.delete("/deleteProfile/:id", authMiddleware, userController.deleteUserProfile);
 userRouter.patch("/follow/:id", authMiddleware, userController.toggleFollowUser);
 userRouter.delete("/deleteAccount", authMiddleware, userController.deleteAccount);
 userRouter.get("/search/users", userController.searchUsers);

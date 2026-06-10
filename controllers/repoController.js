@@ -6,7 +6,6 @@ const Commit = require("../models/commitModel");
 const sanitizeInput = require("../utils/sanitizeInput");
 
 async function createRepository(req, res) {
-
     let { owner, name, issues, content, description, visibility } = req.body;
 
     name = sanitizeInput(name);
@@ -15,9 +14,7 @@ async function createRepository(req, res) {
     const normalizedName = name?.trim()?.toLowerCase();
 
     try {
-
         // REQUIRED VALIDATION
-
         if (!normalizedName) {
             return res.status(400).json({
                 error: "Repository name is required",
@@ -25,11 +22,9 @@ async function createRepository(req, res) {
         }
 
         // REMOVE EXTRA SPACES + LOWERCASE
-
         name = name.trim().toLowerCase();
 
         // LENGTH VALIDATION
-
         if (name.length < 3) {
             return res.status(400).json({
                 error: "Repository name must be at least 3 characters",
@@ -43,7 +38,6 @@ async function createRepository(req, res) {
         }
 
         // CHARACTER VALIDATION
-
         const repoNameRegex = /^[a-zA-Z0-9-_]+$/;
 
         if (!repoNameRegex.test(name)) {
@@ -53,7 +47,6 @@ async function createRepository(req, res) {
         }
 
         // RESERVED NAMES
-
         const reservedNames = [
             "admin", "api", "root", "system", "backend",
             "null", "undefined", "repocore", "support", "owner",
@@ -66,7 +59,6 @@ async function createRepository(req, res) {
         }
 
         // VALID OWNER ID
-
         if (!mongoose.Types.ObjectId.isValid(owner)) {
             return res.status(400).json({
                 error: "Invalid user ID",
@@ -74,7 +66,6 @@ async function createRepository(req, res) {
         }
 
         // CHECK DUPLICATE REPOSITORY
-
         const existingRepository = await Repository.findOne({
             owner,
             name: { $regex: new RegExp(`^${normalizedName}$`, "i") },
@@ -87,9 +78,7 @@ async function createRepository(req, res) {
             });
         }
 
-
         // DESCRIPTION LIMIT
-
         if (description && description.length > 300) {
             return res.status(400).json({
                 error: "Description cannot exceed 300 characters",
@@ -97,7 +86,6 @@ async function createRepository(req, res) {
         }
 
         // VISIBILITY VALIDATION
-
         if (typeof visibility !== "boolean") {
             return res.status(400).json({
                 error: "Visibility must be true or false",
@@ -105,7 +93,6 @@ async function createRepository(req, res) {
         }
 
         // CREATE REPOSITORY
-
         const newRepository = new Repository({
             name: normalizedName,
             description,
@@ -118,7 +105,6 @@ async function createRepository(req, res) {
         const result = await newRepository.save();
 
         // UPDATE USER
-
         await User.findByIdAndUpdate(owner, {
             $push: {
                 repositories: result._id,
@@ -126,15 +112,12 @@ async function createRepository(req, res) {
         });
 
         // SUCCESS RESPONSE
-
         res.status(201).json({
             success: true,
             message: "Repository created successfully",
             repositoryID: result._id,
         });
-
     } catch (err) {
-
         if (err.code === 11000) {
             return res.status(400).json({
                 success: false,
@@ -143,7 +126,6 @@ async function createRepository(req, res) {
         }
 
         console.error("Repository creation error:", err.message);
-
         res.status(500).json({
             success: false,
             error: "Server error",
@@ -167,9 +149,6 @@ async function getAllRepositories(req, res) {
 async function fetchRepositoryById(req, res) {
     try {
         const { id } = req.params;
-        // const repository = await Repository.findById(id)
-        //     .populate("owner")
-        //     .populate("issues");
         const repository = await Repository.findById(id)
             .populate("owner", "username")
             .populate("issues")
@@ -189,82 +168,18 @@ async function fetchRepositoryById(req, res) {
     }
 }
 
-// async function fetchRepositoryByOwnerAndName(req, res) {
-
-//     const { username, repositoryName } = req.params;
-
-//     try {
-
-//         // FIND OWNER
-
-//         const owner = await User.findOne({
-//             username: username.toLowerCase(),
-//         });
-
-//         if (!owner) {
-//             return res.status(404).json({ error: "User not found" });
-//         }
-
-//         // FIND REPOSITORY
-
-//         const repository = await Repository.findOne({
-//             owner: owner._id,
-//             name: repositoryName.trim().toLowerCase(),
-//         })
-//             .populate("owner")
-//             .populate("issues")
-//             .populate("latestCommit")
-//             .populate("commits");
-
-//         if (!repository) {
-//             return res.status(404).json({
-//                 error: "Repository not found",
-//             });
-//         }
-
-//         // PRIVATE REPO SECURITY
-
-//         const isOwner =
-//             repository.owner._id.toString() === req.user.id;
-
-//         if (!repository.visibility && !isOwner) {
-//             return res.status(403).json({
-//                 error: "Access denied. Private repository.",
-//             });
-//         }
-
-//         // SUCCESS
-
-//         res.json(repository);
-
-//     } catch (err) {
-
-//         console.error("Repository fetch error:", err.message);
-
-//         res.status(500).send("Server error");
-//     }
-// }
-
 async function fetchRepositoryByOwnerAndName(req, res) {
-
     try {
-
         const { username, repositoryName } = req.params;
 
-        // =========================
         // FIND OWNER
-        // =========================
-
         const owner = await User.findOne({ username });
 
         if (!owner) {
             return res.status(404).json({ message: "User not found" });
         }
 
-        // =========================
         // FIND REPOSITORY
-        // =========================
-
         const repository = await Repository.findOne({
             owner: owner._id,
             name: repositoryName,
@@ -276,50 +191,31 @@ async function fetchRepositoryByOwnerAndName(req, res) {
             return res.status(404).json({ message: "Repository not found" });
         }
 
-        // =========================
         // PRIVATE REPOSITORY CHECK
-        // =========================
-
         if (repository.visibility === false) {
-
             // NO TOKEN
-
             if (!req.headers.authorization) {
                 return res.status(403).json({ message: "Private repository" });
             }
 
             try {
-
                 const token = req.headers.authorization.split(" ")[1];
-
                 const jwt = require("jsonwebtoken");
-
-                const decoded = jwt.verify(
-                    token,
-                    process.env.JWT_SECRET_KEY
-                );
+                const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY);
 
                 // ONLY OWNER CAN ACCESS
-
                 if (decoded.id !== repository.owner._id.toString()) {
                     return res.status(403).json({ message: "Access denied" });
                 }
-
             } catch {
                 return res.status(403).json({ message: "Invalid token" });
             }
         }
 
-        // =========================
         // SUCCESS
-        // =========================
-
         res.status(200).json(repository);
-
     } catch (err) {
-
         console.error(err);
-
         res.status(500).json({ message: "Server error" });
     }
 }
@@ -328,9 +224,7 @@ async function fetchRepositoriesForCurrentUser(req, res) {
     const { userID } = req.params;
 
     try {
-        const repositories = await Repository.find({
-            owner: userID,
-        })
+        const repositories = await Repository.find({ owner: userID })
             .populate("latestCommit")
             .populate("commits");
 
@@ -347,7 +241,6 @@ async function fetchRepositoriesForCurrentUser(req, res) {
 }
 
 async function updateRepositoryById(req, res) {
-
     const { id } = req.params;
     const { name, description, visibility } = req.body;
 
@@ -355,32 +248,21 @@ async function updateRepositoryById(req, res) {
     const sanitizedDescription = sanitizeInput(description);
 
     try {
-
-        // =========================
         // FIND REPOSITORY
-        // =========================
-
         const repository = await Repository.findById(id);
 
         if (!repository) {
             return res.status(404).json({ error: "Repository not found!" });
         }
 
-        // =========================
         // OWNER VALIDATION
-        // =========================
-
         if (repository.owner.toString() !== req.user.id) {
             return res.status(403).json({ error: "Unauthorized access" });
         }
 
-        // =========================
         // NAME VALIDATION
-        // =========================
-
         if (name !== undefined) {
-
-            const trimmedName = sanitizedName.trim()
+            const trimmedName = sanitizedName.trim();
 
             if (trimmedName.length < 3) {
                 return res.status(400).json({
@@ -389,7 +271,6 @@ async function updateRepositoryById(req, res) {
             }
 
             // CHECK DUPLICATE
-
             const existingRepo = await Repository.findOne({
                 owner: req.user.id,
                 name: trimmedName,
@@ -405,33 +286,22 @@ async function updateRepositoryById(req, res) {
             repository.name = trimmedName;
         }
 
-        // =========================
         // DESCRIPTION
-        // =========================
-
         if (description !== undefined) {
             repository.description = sanitizedDescription.trim();
         }
 
-        // =========================
         // VISIBILITY VALIDATION
-        // =========================
-
         if (visibility !== undefined) {
-
             if (typeof visibility !== "boolean") {
                 return res.status(400).json({
                     error: "Visibility must be boolean",
                 });
             }
-
             repository.visibility = visibility;
         }
 
-        // =========================
         // SAVE
-        // =========================
-
         const updatedRepository = await repository.save();
 
         res.json({
@@ -439,11 +309,8 @@ async function updateRepositoryById(req, res) {
             message: "Repository updated successfully!",
             repository: updatedRepository,
         });
-
     } catch (err) {
-
         console.error("Error updating repository:", err.message);
-
         res.status(500).json({ error: "Server error" });
     }
 }
@@ -458,7 +325,6 @@ async function toggleVisibilityById(req, res) {
         }
 
         repository.visibility = !repository.visibility;
-
         const updatedRepository = await repository.save();
 
         res.json({
@@ -488,12 +354,10 @@ async function deleteRepositoryById(req, res) {
 
 async function toggleStarRepository(req, res) {
     const { id } = req.params;
-
     const userId = req.user.id;
 
     try {
-        const repository =
-            await Repository.findById(id);
+        const repository = await Repository.findById(id);
 
         if (!repository) {
             return res.status(404).json({
@@ -501,53 +365,30 @@ async function toggleStarRepository(req, res) {
             });
         }
 
-        const alreadyStarred =
-            repository.stars.includes(userId);
+        const alreadyStarred = repository.stars.includes(userId);
 
         if (alreadyStarred) {
+            repository.stars = repository.stars.filter((star) => star.toString() !== userId);
 
-            repository.stars =
-                repository.stars.filter(
-                    (star) =>
-                        star.toString() !== userId
-                );
-
-            await User.findByIdAndUpdate(
-                userId,
-                {
-                    $pull: {
-                        starRepos: id,
-                    },
-                }
-            );
-
+            await User.findByIdAndUpdate(userId, {
+                $pull: { starRepos: id },
+            });
         } else {
-
             repository.stars.push(userId);
 
-            await User.findByIdAndUpdate(
-                userId,
-                {
-                    $push: {
-                        starRepos: id,
-                    },
-                }
-            );
+            await User.findByIdAndUpdate(userId, {
+                $push: { starRepos: id },
+            });
         }
 
         await repository.save();
 
         res.json({
-            message: alreadyStarred
-                ? "Repository unstarred"
-                : "Repository starred",
-
+            message: alreadyStarred ? "Repository unstarred" : "Repository starred",
             stars: repository.stars.length,
         });
-
     } catch (err) {
         console.error(err);
-
         res.status(500).json({
             error: "Server error",
         });
@@ -584,9 +425,7 @@ const deleteRepository = async (req, res) => {
         }
 
         // FETCH COMMITS
-        const commits = await Commit.find({
-            repository: id,
-        });
+        const commits = await Commit.find({ repository: id });
 
         // PREPARE S3 OBJECTS
         const objectsToDelete = [];
@@ -594,9 +433,7 @@ const deleteRepository = async (req, res) => {
         for (const commit of commits) {
             for (const file of commit.files) {
                 if (file.s3Key) {
-                    objectsToDelete.push({
-                        Key: file.s3Key,
-                    });
+                    objectsToDelete.push({ Key: file.s3Key });
                 }
             }
         }
@@ -605,21 +442,15 @@ const deleteRepository = async (req, res) => {
         if (objectsToDelete.length > 0) {
             await s3.deleteObjects({
                 Bucket: S3_BUCKET,
-                Delete: {
-                    Objects: objectsToDelete,
-                },
+                Delete: { Objects: objectsToDelete },
             }).promise();
         }
 
         // DELETE COMMITS
-        await Commit.deleteMany({
-            repository: id,
-        });
+        await Commit.deleteMany({ repository: id });
 
         // DELETE ISSUES
-        await Issue.deleteMany({
-            repository: id,
-        });
+        await Issue.deleteMany({ repository: id });
 
         // DELETE REPOSITORY
         await Repository.findByIdAndDelete(id);
@@ -628,10 +459,8 @@ const deleteRepository = async (req, res) => {
             success: true,
             message: "Repository deleted successfully",
         });
-
     } catch (err) {
         console.error("Delete repository error:", err);
-
         res.status(500).json({
             success: false,
             message: "Failed to delete repository",
@@ -640,9 +469,7 @@ const deleteRepository = async (req, res) => {
 };
 
 const searchRepositories = async (req, res) => {
-
     try {
-
         const query = req.query.q;
 
         if (!query) return res.json([]);
@@ -652,14 +479,11 @@ const searchRepositories = async (req, res) => {
             name: { $regex: query, $options: "i" },
         })
             .populate("owner", "username")
-            .limit(10);
+            .limit(6);
 
         res.json(repositories);
-
     } catch (err) {
-
         console.error(err);
-
         res.status(500).json({
             message: "Failed to search repositories",
         });
@@ -667,5 +491,15 @@ const searchRepositories = async (req, res) => {
 };
 
 module.exports = {
-    createRepository, getAllRepositories, fetchRepositoryById, fetchRepositoriesForCurrentUser, updateRepositoryById, toggleVisibilityById, deleteRepositoryById, toggleStarRepository, deleteRepository, searchRepositories, fetchRepositoryByOwnerAndName
+    createRepository,
+    getAllRepositories,
+    fetchRepositoryById,
+    fetchRepositoriesForCurrentUser,
+    updateRepositoryById,
+    toggleVisibilityById,
+    deleteRepositoryById,
+    toggleStarRepository,
+    deleteRepository,
+    searchRepositories,
+    fetchRepositoryByOwnerAndName,
 };
