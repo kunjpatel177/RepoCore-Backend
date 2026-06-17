@@ -76,7 +76,7 @@ const login = async (req, res) => {
     //     return res.status(400).json({ message: "Email and password are required" });
 
     const user = await User.findOne({ email });
-    console.log(user);
+    // console.log(user);
 
     if (!user)
         return res.status(400).json({ message: "Invalid credentials" });
@@ -100,18 +100,12 @@ const login = async (req, res) => {
     });
 };
 
-// GET ALL USERS
-const getAllUsers = async (req, res) => {
-    const users = await User.find({}).select("-password");
-    res.status(200).json(users);
-};
-
 // GET USER PROFILE
 const getUserProfile = async (req, res) => {
     const currentID = req.params.id;
     const loggedInUserId = req.user?.id;
 
-    const user = await User.findById(currentID)
+    const user = await User.findById(currentID).select("-password")
         .populate({
             path: "repositories",
             populate: [
@@ -151,6 +145,7 @@ const updateUserProfile = async (req, res) => {
             message: "Unauthorized access",
         });
     }
+
     let { email, password } = req.body;
 
     email = sanitizeInput(email);
@@ -181,10 +176,27 @@ const updateUserProfile = async (req, res) => {
 
     await user.save();
 
+    const updatedUser = await User.findById(currentID).select("-password")
+        .populate({
+            path: "repositories",
+            populate: [
+                {
+                    path: "latestCommit",
+                },
+                {
+                    path: "commits",
+                    select: "createdAt",
+                },
+            ],
+        })
+        .populate("followers", "username email")
+        .populate("followedUsers", "username email")
+        .populate("starRepos");
+
     res.status(200).json({
         success: true,
         message: "Profile updated successfully",
-        user,
+        user: updatedUser,
     });
 };
 
@@ -278,7 +290,7 @@ const searchUsers = async (req, res) => {
         if (!query) return res.json([]);
 
         const users = await User.find({
-            username: { $regex: query, $options: "i" },
+            username: { $regex: query, $options: "i" }, // "i" means ignore case (uppercas/lowercase)
         })
             .select("username email followers repositories")
             .limit(6);
@@ -295,7 +307,6 @@ const searchUsers = async (req, res) => {
 module.exports = {
     signup: asyncHandler(signup),
     login: asyncHandler(login),
-    getAllUsers: asyncHandler(getAllUsers),
     getUserProfile: asyncHandler(getUserProfile),
     updateUserProfile: asyncHandler(updateUserProfile),
     toggleFollowUser: asyncHandler(toggleFollowUser),

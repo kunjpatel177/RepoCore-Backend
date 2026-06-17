@@ -5,13 +5,12 @@ const { loginLimiter, signupLimiter } = require("../middleware/rateLimitMiddlewa
 
 const userRouter = express.Router();
 
-userRouter.get("/allUsers", userController.getAllUsers);
 userRouter.post("/signup", signupLimiter, userController.signup);
 userRouter.post("/login", loginLimiter, userController.login);
 userRouter.get("/userProfile/:id", authMiddleware, userController.getUserProfile);
 userRouter.put("/updateProfile/:id", authMiddleware, userController.updateUserProfile);
 userRouter.patch("/follow/:id", authMiddleware, userController.toggleFollowUser);
 userRouter.delete("/deleteAccount", authMiddleware, userController.deleteAccount);
-userRouter.get("/search/users", userController.searchUsers);
+userRouter.get("/search/users", authMiddleware, userController.searchUsers);
 
 module.exports = userRouter;

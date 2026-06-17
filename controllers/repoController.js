@@ -4,57 +4,24 @@ const User = require("../models/userModel");
 const Issue = require("../models/issueModel");
 const Commit = require("../models/commitModel");
 const sanitizeInput = require("../utils/sanitizeInput");
+const { repoValidator } = require("../utils/repoValidator")
+
 
 async function createRepository(req, res) {
-    let { owner, name, issues, content, description, visibility } = req.body;
-
-    name = sanitizeInput(name);
-    description = sanitizeInput(description);
-
-    const normalizedName = name?.trim()?.toLowerCase();
-
     try {
-        // REQUIRED VALIDATION
-        if (!normalizedName) {
+        let { owner, name, issues, content, description, visibility } = req.body;
+
+        name = sanitizeInput(name);
+        description = sanitizeInput(description).trim();
+
+        const normalizedName = name?.trim()?.toLowerCase();
+
+        const repoValidation = repoValidator(normalizedName, description);
+
+        if (!repoValidation.valid) {
             return res.status(400).json({
-                error: "Repository name is required",
-            });
-        }
-
-        // REMOVE EXTRA SPACES + LOWERCASE
-        name = name.trim().toLowerCase();
-
-        // LENGTH VALIDATION
-        if (name.length < 3) {
-            return res.status(400).json({
-                error: "Repository name must be at least 3 characters",
-            });
-        }
-
-        if (name.length > 30) {
-            return res.status(400).json({
-                error: "Repository name cannot exceed 30 characters",
-            });
-        }
-
-        // CHARACTER VALIDATION
-        const repoNameRegex = /^[a-zA-Z0-9-_]+$/;
-
-        if (!repoNameRegex.test(name)) {
-            return res.status(400).json({
-                error: "Repository name can only contain letters, numbers, hyphens and underscores",
-            });
-        }
-
-        // RESERVED NAMES
-        const reservedNames = [
-            "admin", "api", "root", "system", "backend",
-            "null", "undefined", "repocore", "support", "owner",
-        ];
-
-        if (reservedNames.includes(name)) {
-            return res.status(400).json({
-                error: "This repository name is reserved",
+                success: false,
+                error: repoValidation.message,
             });
         }
 
@@ -75,13 +42,6 @@ async function createRepository(req, res) {
             return res.status(400).json({
                 success: false,
                 message: "Repository with this name already exists",
-            });
-        }
-
-        // DESCRIPTION LIMIT
-        if (description && description.length > 300) {
-            return res.status(400).json({
-                error: "Description cannot exceed 300 characters",
             });
         }
 
@@ -133,19 +93,6 @@ async function createRepository(req, res) {
     }
 }
 
-async function getAllRepositories(req, res) {
-    try {
-        const repositories = await Repository.find({})
-            .populate("owner")
-            .populate("issues");
-
-        res.json(repositories);
-    } catch (err) {
-        console.error("Error during fetching repositories : ", err.message);
-        res.status(500).send("Server error");
-    }
-}
-
 async function fetchRepositoryById(req, res) {
     try {
         const { id } = req.params;
@@ -168,62 +115,9 @@ async function fetchRepositoryById(req, res) {
     }
 }
 
-async function fetchRepositoryByOwnerAndName(req, res) {
-    try {
-        const { username, repositoryName } = req.params;
-
-        // FIND OWNER
-        const owner = await User.findOne({ username });
-
-        if (!owner) {
-            return res.status(404).json({ message: "User not found" });
-        }
-
-        // FIND REPOSITORY
-        const repository = await Repository.findOne({
-            owner: owner._id,
-            name: repositoryName,
-        })
-            .populate("owner", "username")
-            .populate("latestCommit");
-
-        if (!repository) {
-            return res.status(404).json({ message: "Repository not found" });
-        }
-
-        // PRIVATE REPOSITORY CHECK
-        if (repository.visibility === false) {
-            // NO TOKEN
-            if (!req.headers.authorization) {
-                return res.status(403).json({ message: "Private repository" });
-            }
-
-            try {
-                const token = req.headers.authorization.split(" ")[1];
-                const jwt = require("jsonwebtoken");
-                const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY);
-
-                // ONLY OWNER CAN ACCESS
-                if (decoded.id !== repository.owner._id.toString()) {
-                    return res.status(403).json({ message: "Access denied" });
-                }
-            } catch {
-                return res.status(403).json({ message: "Invalid token" });
-            }
-        }
-
-        // SUCCESS
-        res.status(200).json(repository);
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ message: "Server error" });
-    }
-}
-
 async function fetchRepositoriesForCurrentUser(req, res) {
-    const { userID } = req.params;
-
     try {
+        const { userID } = req.params;
         const repositories = await Repository.find({ owner: userID })
             .populate("latestCommit")
             .populate("commits");
@@ -241,13 +135,12 @@ async function fetchRepositoriesForCurrentUser(req, res) {
 }
 
 async function updateRepositoryById(req, res) {
-    const { id } = req.params;
-    const { name, description, visibility } = req.body;
-
-    const sanitizedName = sanitizeInput(name);
-    const sanitizedDescription = sanitizeInput(description);
-
     try {
+        const { id } = req.params;
+        const { name, description, visibility } = req.body;
+
+        const sanitizedName = sanitizeInput(name).trim().toLowerCase();
+        const sanitizedDescription = sanitizeInput(description).trim();
         // FIND REPOSITORY
         const repository = await Repository.findById(id);
 
@@ -260,46 +153,38 @@ async function updateRepositoryById(req, res) {
             return res.status(403).json({ error: "Unauthorized access" });
         }
 
-        // NAME VALIDATION
-        if (name !== undefined) {
-            const trimmedName = sanitizedName.trim();
+        const repoValidation = repoValidator(sanitizedName, sanitizedDescription);
 
-            if (trimmedName.length < 3) {
-                return res.status(400).json({
-                    error: "Repository name must be at least 3 characters",
-                });
-            }
-
-            // CHECK DUPLICATE
-            const existingRepo = await Repository.findOne({
-                owner: req.user.id,
-                name: trimmedName,
-                _id: { $ne: id },
+        if (!repoValidation.valid) {
+            return res.status(400).json({
+                success: false,
+                error: repoValidation.message,
             });
-
-            if (existingRepo) {
-                return res.status(400).json({
-                    error: "Repository with this name already exists",
-                });
-            }
-
-            repository.name = trimmedName;
         }
 
-        // DESCRIPTION
-        if (description !== undefined) {
-            repository.description = sanitizedDescription.trim();
+        // CHECK DUPLICATE
+        const existingRepo = await Repository.findOne({
+            owner: req.user.id,
+            name: sanitizedName,
+            _id: { $ne: id },
+        });
+
+        if (existingRepo) {
+            return res.status(400).json({
+                error: "Repository with this name already exists",
+            });
         }
+
+        repository.name = sanitizedName;
+        repository.description = sanitizedDescription;
 
         // VISIBILITY VALIDATION
-        if (visibility !== undefined) {
-            if (typeof visibility !== "boolean") {
-                return res.status(400).json({
-                    error: "Visibility must be boolean",
-                });
-            }
-            repository.visibility = visibility;
+        if (typeof visibility !== "boolean") {
+            return res.status(400).json({
+                error: "Visibility must be true or false",
+            });
         }
+        repository.visibility = visibility;
 
         // SAVE
         const updatedRepository = await repository.save();
@@ -395,7 +280,7 @@ async function toggleStarRepository(req, res) {
     }
 }
 
-const deleteRepository = async (req, res) => {
+async function deleteRepository(req, res) {
     try {
         const { s3, S3_BUCKET } = require("../config/aws-config");
         const { id } = req.params;
@@ -468,7 +353,7 @@ const deleteRepository = async (req, res) => {
     }
 };
 
-const searchRepositories = async (req, res) => {
+async function searchRepositories(req, res) {
     try {
         const query = req.query.q;
 
@@ -492,7 +377,6 @@ const searchRepositories = async (req, res) => {
 
 module.exports = {
     createRepository,
-    getAllRepositories,
     fetchRepositoryById,
     fetchRepositoriesForCurrentUser,
     updateRepositoryById,
@@ -501,5 +385,4 @@ module.exports = {
     toggleStarRepository,
     deleteRepository,
     searchRepositories,
-    fetchRepositoryByOwnerAndName,
 };

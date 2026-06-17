@@ -4,56 +4,23 @@ const User = require("../models/userModel");
 const Issue = require("../models/issueModel");
 const sanitizeInput = require("../utils/sanitizeInput");
 const asyncHandler = require("../utils/asyncHandler");
+const { issueValidator } = require("../utils/issueValidator");
 
 async function createIssue(req, res) {
     try {
         let { title, description, repository } = req.body;
 
-        title = sanitizeInput(title);
-        description = sanitizeInput(description);
+        title = sanitizeInput(title).trim();
+        description = sanitizeInput(description).trim();
 
         const author = req.user.id;
 
-        // REQUIRED VALIDATION
-        if (!title || !title.trim()) {
-            return res.status(400).json({
-                error: "Issue title is required",
-            });
-        }
+        const issueValidation = issueValidator(title, description);
 
-        if (!description || !description.trim()) {
+        if (!issueValidation.valid) {
             return res.status(400).json({
-                error: "Issue description is required",
-            });
-        }
-
-        // REMOVE EXTRA SPACES
-        title = title.trim();
-        description = description.trim();
-
-        // TITLE LENGTH
-        if (title.length < 5) {
-            return res.status(400).json({
-                error: "Issue title must be at least 5 characters",
-            });
-        }
-
-        if (title.length > 100) {
-            return res.status(400).json({
-                error: "Issue title cannot exceed 100 characters",
-            });
-        }
-
-        // DESCRIPTION LENGTH
-        if (description.length < 10) {
-            return res.status(400).json({
-                error: "Issue description must be at least 10 characters",
-            });
-        }
-
-        if (description.length > 1000) {
-            return res.status(400).json({
-                error: "Issue description cannot exceed 1000 characters",
+                success: false,
+                error: issueValidation.message,
             });
         }
 
@@ -154,7 +121,7 @@ async function getIssueById(req, res) {
     }
 }
 
-const deleteIssue = async (req, res) => {
+async function deleteIssue(req, res) {
     try {
         const issueId = req.params.id;
         const currentUserId = req.user.id;
@@ -187,44 +154,22 @@ const deleteIssue = async (req, res) => {
     }
 };
 
-const updateIssue = async (req, res) => {
+async function updateIssue(req, res) {
     try {
         const issueId = req.params.id;
         let { title, description, status } = req.body;
 
         // SANITIZE
-        title = sanitizeInput(title);
-        description = sanitizeInput(description);
+        title = sanitizeInput(title).trim();
+        description = sanitizeInput(description).trim();
 
-        // REQUIRED VALIDATION
-        if (!title || !title.trim()) {
-            return res.status(400).json({ error: "Issue title is required" });
-        }
+        const issueValidation = issueValidator(title, description);
 
-        if (!description || !description.trim()) {
-            return res.status(400).json({ error: "Issue description is required" });
-        }
-
-        // REMOVE EXTRA SPACES
-        title = title.trim();
-        description = description.trim();
-
-        // TITLE LENGTH
-        if (title.length < 5) {
-            return res.status(400).json({ error: "Issue title must be at least 5 characters" });
-        }
-
-        if (title.length > 100) {
-            return res.status(400).json({ error: "Issue title cannot exceed 100 characters" });
-        }
-
-        // DESCRIPTION LENGTH
-        if (description.length < 10) {
-            return res.status(400).json({ error: "Issue description must be at least 10 characters" });
-        }
-
-        if (description.length > 1000) {
-            return res.status(400).json({ error: "Issue description cannot exceed 1000 characters" });
+        if (!issueValidation.valid) {
+            return res.status(400).json({
+                success: false,
+                error: issueValidation.message,
+            });
         }
 
         // FIND ISSUE

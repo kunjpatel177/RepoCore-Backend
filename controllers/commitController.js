@@ -85,7 +85,6 @@ const pushCommit = async (req, res) => {
 
         console.log(req.body);
         const author = req.user.id;
-        // const author = "6a0ec1a4b81542a99d5fdd31";
 
         // VALIDATION
         if (!repositoryId) {
@@ -108,15 +107,9 @@ const pushCommit = async (req, res) => {
         }
 
         // OWNER CHECK
-        // if (repository.owner.toString() !== author) {
-        //     return res.status(403).json({ error: "Access denied" });
-        // }
         const ownerId = repository.owner._id
             ? repository.owner._id.toString()
             : repository.owner.toString();
-
-        // console.log("Repository owner:", repository.owner);
-        // console.log("Author:", author);
 
         if (ownerId !== author) {
             return res.status(403).json({
