@@ -40,6 +40,7 @@ async function startServer() {
 
         // CORS
         const allowedOrigins = [
+            "https://repocore.vercel.app",
             "http://localhost:5173",
             process.env.FRONTEND_URL,
             "https://repocore-p0nu.onrender.com",
