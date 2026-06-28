@@ -88,9 +88,9 @@ async function deleteIssueById(req, res) {
 }
 
 async function getAllIssues(req, res) {
-    const { id } = req.params;
-
+    
     try {
+        const { id } = req.params;
         const issues = await Issue.find({ repository: id })
             .populate("author", "username")
             .sort({ createdAt: -1 });

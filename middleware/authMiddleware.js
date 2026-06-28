@@ -15,7 +15,7 @@ const authMiddleware = (req, res, next) => {
             process.env.JWT_SECRET_KEY
         );
 
-        console.log("verified = ",verified)
+        // console.log("verified = ",verified)
 
         req.user = verified;
 

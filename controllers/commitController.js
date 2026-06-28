@@ -83,7 +83,7 @@ const pushCommit = async (req, res) => {
         const { s3, S3_BUCKET } = require("../config/aws-config");
         const { repositoryId, commitHash, commitMessage, files } = req.body;
 
-        console.log(req.body);
+        // console.log(req.body);
         const author = req.user.id;
 
         // VALIDATION
@@ -153,7 +153,7 @@ const pushCommit = async (req, res) => {
                 size,
             });
 
-            console.log(`Uploaded: ${filepath}`);
+            // console.log(`Uploaded: ${filepath}`);
         }
 
         // CREATE COMMIT

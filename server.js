@@ -27,6 +27,7 @@ async function startServer() {
 
         // LOGGING
         app.use(morgan("dev"));
+        // app.use(morgan("combined"));
 
         // BODY LIMIT
         app.use(express.json({ limit: "100mb" }));

@@ -46,7 +46,7 @@ function issueValidator(title, description) {
 
     return { valid: true };
 
-    console.log("------- All Done --------")
+    // console.log("------- All Done --------")
 }
 
 module.exports = { issueValidator };

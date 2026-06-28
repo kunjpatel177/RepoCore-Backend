@@ -238,10 +238,10 @@ async function deleteRepositoryById(req, res) {
 }
 
 async function toggleStarRepository(req, res) {
-    const { id } = req.params;
-    const userId = req.user.id;
-
+    
     try {
+        const { id } = req.params;
+        const userId = req.user.id;
         const repository = await Repository.findById(id);
 
         if (!repository) {
@@ -339,6 +339,10 @@ async function deleteRepository(req, res) {
 
         // DELETE REPOSITORY
         await Repository.findByIdAndDelete(id);
+
+        await User.findByIdAndUpdate(repository.owner.toString(), {
+            $pull: {repositories: id}
+        })
 
         res.status(200).json({
             success: true,
