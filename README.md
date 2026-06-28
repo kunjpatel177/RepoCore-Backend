@@ -272,4 +272,4 @@ Storage: AWS S3
 
 GitHub: https://github.com/kunjpatel177
 
-Website Link: https://repocore-p0nu.onrender.com/
+Website Link: https://repocore.vercel.app/ or https://repocore-p0nu.onrender.com/
